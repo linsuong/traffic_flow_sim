@@ -12,7 +12,7 @@ steps = 2000
 velocities = np.zeros(0,dtype=float)
 densities = np.linspace(0.02,1,num=49,endpoint=False)
 
-def movement(number, road_length, position, velocity):
+def move(number, road_length, position, velocity):
     road = np.zeros((2, road_length), dtype = int)
     for i in range(number):
         count = int(position[i])
@@ -20,20 +20,27 @@ def movement(number, road_length, position, velocity):
         road[1, count] = velocity[i] 
     return road
 
-dataset = []
-
 for d in densities:
     avg_velocity = 0
     number = int(road_length*density)
     velocity = np.zeros((number), dtype= int) #store car velocity
     position = np.zeros((number), dtype= int) #store car positon
     print(position)
-    dataset = np.zeros((0, 2, road_length), dtype = int) #store data of runtime
+    data = np.zeros((0, 2, road_length), dtype = int) #store data of runtime
 
 #initialization
 position = np.array(random.sample(range(road_length), number)) #generate cars and assign random positions on the road
-print(position)
+#print(position)
 position.sort() #sorting positions
-print(position)
+#print(position)
+velocity = np.random.randint(v_max + 1, size = number)
+dataset = move(number, road_length, position, velocity)
+data = np.append(data, [dataset], axis = 0)
+
+for i in range(steps):
+    velocity = np.min(np.vstack((velocity + 1, v_max*np.ones_like(velocity))),axis=0)
+    print(velocity)
+
+
 
 
