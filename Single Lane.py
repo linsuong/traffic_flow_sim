@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import random
 
 class NaSchTrafficSimulation:
-    def __init__(self, road_length=200, density=0.7, max_velocity=5, slow_prob=0.5):
+    def __init__(self, road_length=100, density=1/100, max_velocity=10, slow_prob=0.5):
         self.road_length = road_length
         self.density = density
         self.max_velocity = max_velocity
@@ -45,15 +45,15 @@ class NaSchTrafficSimulation:
         for i in range(len(self.data)):
             positions = self.data[i]
             time_steps = [i] * len(positions)
-            plt.plot(positions, time_steps, '.', 'black',markersize=5)
+            plt.plot(positions, time_steps, '|',markersize=5)
         plt.title('Vehicle Positions Over Time')
         plt.xlabel('Position on Road')
         plt.ylabel('Time Step')
         plt.show()
 
 # Main simulation
-random.seed(100)
-sim = NaSchTrafficSimulation(density=0.3)
+random.seed(1000)
+sim = NaSchTrafficSimulation(density=1/100)
 sim.initialize()
-sim.update(30)
+sim.update(100)
 sim.plot_vehicle_positions_over_time()
