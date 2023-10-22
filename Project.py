@@ -4,7 +4,7 @@ import random
 
 class Vehicle:
     def __init__ (self, length = 1, target_velocity = 4, max_velocity = 10, 
-                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.8):
+                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.3):
         #self.id = id
         self.length = length
         self.velocity = []
@@ -57,7 +57,7 @@ class Traffic_Light:
             pass
         
 class Road: #do i NEED this road class, or can this just be in the simulation clasS? 
-    def __init__(self, length = 100, density = 5/100, speed_limit = 5, bend = False):
+    def __init__(self, length = 100, density = 10/100, speed_limit = 5, bend = False):
         self.length = length
         self.density = density
         self.number = density * length
@@ -111,6 +111,8 @@ class Simulation:
         
         else:
             for _ in range(steps):
+                new_velocities = []
+
                 for i in range(len(self.positions)):
                     velocity = self.velocities[i]
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
@@ -120,58 +122,74 @@ class Simulation:
                     if velocity > 0 and random.random() < self.Vehicle.slow_prob:
                         velocity = max(velocity - 1, 0)
 
-                    self.velocities[i] = velocity
-                    print(np.shape(self.positions))
+                    new_velocities.append(velocity)
 
+                self.velocities = new_velocities
                 new_positions = [(pos + vel) % self.Road.length for pos, vel in zip(self.positions, self.velocities)]
                 self.positions = new_positions
                 self.data.append(self.positions[:])
 
         print(self.data)
-        #print(self.positions)
-        time_steps = range(steps)
-        new_data = []
-        self.Road.number = int(self.Road.number)
-    
-        for i in range(self.Road.number):
-            #print(self.data[i][1])
-            print('Vehicle ID: %s' %i)
-            new_data = [item[i] for item in self.data]
-            print('Position List: %s' %new_data)
-            plt.plot(new_data, time_steps, '.')
 
-        plt.title('')
-        plt.xlabel('Vechicle Position')
-        plt.ylabel('Time')
-        plt.show()
+        return self.data
 
 
-    def plot_density(self):
-            for i in range(1500,2000):
-                avg_velocity += (np.sum(self.Vehicle.position[i,1,:])/self.Road.length * self.Road.density)
-            avg_velocity = avg_velocity/500
-            velocities = np.append(velocities,avg_velocity)
-            type(velocities)
-            densities = np.linspace(0.02,1,num=49,endpoint=False)
-            plt.plot(densities, np.multiply(densities, velocities))
+    def plot(self, steps, plot = True):
+        if plot == True:
+            print('Simulation Complete. Plotting graph...')
+            time_steps = range(steps)
+            new_data = []
+            self.Road.number = int(self.Road.number)
+        
+            for i in range(self.Road.number):
+                #print(self.data[i][1])
+                print('Vehicle ID: %s' %i)
+                new_data = [item[i] for item in self.data]
+                print('Position List: %s' %new_data)
+                plt.plot(new_data, time_steps, '.')
+
+            plt.title('Vehicle Position changing as a function of time')
+            plt.xlabel('Vechicle Position')
+            plt.ylabel('Time')
+            plt.show()
+
+        else:
+            print('Simulation Complete. Set plot = True to see the plot.')
+        
+    def plot_density(self, plot=True):
+        sim.initialize()
+        sim.update(100)
+        if plot:
+            avg_velocity = []
+            #velocities = []
+
+            for i in range(min(1500, len(self.data)), min(2000, len(self.data))):
+                avg_velocity.append(np.mean([position[i] for position in self.data] / self.Road.length * self.Road.density))
+
+            densities = np.linspace(0.02, 1, num=49, endpoint=False)
+
+            flow_rate = np.multiply(densities, avg_velocity)
+
+            plt.plot(densities, flow_rate)
             plt.xlabel('Density')
             plt.ylabel('Flow Rate')
             plt.show()
 
-            return None
-        
-        #TODO: define plot fucntion for density and plot visualisaton of cars on road.
+            #TODO: define plot fucntion for density and plot visualisaton of cars on road.
 
-random.seed(100)
+
+
+random.seed(500)
+steps = 100
 sim = Simulation()
 sim.initialize()
 print("Simulation.initalize called.")
-sim.update(100)
+sim.update(steps)
 print("Simulation.update called.")
+sim.plot(steps)
+sim.plot_density()
 
-flow_rate = []
-densities = []
-'''
+
 for i in range(1, 20):
         p = 0.05*i
         densities.append(p) #density
@@ -181,7 +199,7 @@ for i in range(1, 20):
         p_all_flow_rates = [] #store the flow rates of each simulation for one density
     
         for j in range(50): #repeat simulation each density for 20 times
-            for i in range(time_step): #time step = 200
+            for i in range(steps): #time step = 200
                 sim.update()
             p_all_flow_rates.append(T.flow_count/time_step)
 
@@ -192,4 +210,3 @@ for i in range(1, 20):
 plt.plot(densities,flow_rate)
 plt.xlabel("Density")
 plt.ylabel("Flow rate")
-'''
