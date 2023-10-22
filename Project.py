@@ -4,7 +4,7 @@ import random
 
 class Vehicle:
     def __init__ (self, length = 1, target_velocity = 4, max_velocity = 10, 
-                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.25):
+                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.8):
         #self.id = id
         self.length = length
         self.velocity = []
@@ -57,7 +57,7 @@ class Traffic_Light:
             pass
         
 class Road: #do i NEED this road class, or can this just be in the simulation clasS? 
-    def __init__(self, length = 100, density = 40/100, speed_limit = 5, bend = False):
+    def __init__(self, length = 100, density = 5/100, speed_limit = 5, bend = False):
         self.length = length
         self.density = density
         self.number = density * length
@@ -73,7 +73,8 @@ class Road: #do i NEED this road class, or can this just be in the simulation cl
 
 '''
 
-class Network: #TODO: add connection function that joins roads together to form a network.
+class Network: 
+    #TODO: add connection function that joins roads together to form a network.
     def __init__(self) -> None:
         self.roads = []
         self.connect = {}
@@ -86,35 +87,33 @@ class Simulation:
         self.Vehicle = Vehicle()
         self.velocities = None
         self.positions = None
+        self.data = []
+
         return
 
     def initialize(self):
         #print(self.Road.length)
         self.positions = random.sample(range(self.Road.length), int(self.Road.length * self.Road.density)) 
         self.positions.sort()
-        self.velocities = [random.randint(0, self.Road.speed_limit) for i in range(len(self.positions))]
+        self.velocities = [random.randint(0, self.Vehicle.max_velocity) for i in range(len(self.positions))]
         
         if np.shape(self.velocities) != np.shape(self.positions):
             print("Number of cars: %s" %np.shape(self.positions))
             print("Number of velocities: %s" %np.shape(self.velocities))
             raise Exception("Error - not all cars have velocity, or too many velocities, not enough cars")
 
-        print("Vehicles initialised successfully... starting simulation.")
-        #return self.Vehicle.velocity
+        else:
+            print("Vehicles initialised successfully... starting simulation.")
 
     def update(self, steps):
-        self.data = []
-
         if self.velocities is None or self.positions is None:
             raise Exception("Please call initialize() before update()")
         
         else:
             for _ in range(steps):
-                # Update vehicle velocities
                 for i in range(len(self.positions)):
                     velocity = self.velocities[i]
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
-                    #print(headway)
                     velocity = min(velocity + 1, self.Vehicle.max_velocity)
                     velocity = min(velocity, headway)
 
@@ -136,11 +135,10 @@ class Simulation:
     
         for i in range(self.Road.number):
             #print(self.data[i][1])
-            print('vehicle id %s' %i)
+            print('Vehicle ID: %s' %i)
             new_data = [item[i] for item in self.data]
-            print('new data %s' %new_data)
-            print(np.shape(new_data))
-            plt.plot(new_data, time_steps, linestyle='-')
+            print('Position List: %s' %new_data)
+            plt.plot(new_data, time_steps, '.')
 
         plt.title('')
         plt.xlabel('Vechicle Position')
@@ -168,7 +166,7 @@ random.seed(100)
 sim = Simulation()
 sim.initialize()
 print("Simulation.initalize called.")
-sim.update(10)
+sim.update(100)
 print("Simulation.update called.")
 
 flow_rate = []
