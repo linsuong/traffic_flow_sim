@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import random
 
 class Vehicle:
-    def __init__ (self, length = 1, target_velocity = 4, max_velocity = 10, 
+    def __init__ (self, length = 1, target_velocity = 4, max_velocity = 5, 
                     acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.3):
         #self.id = id
         self.length = length
@@ -57,10 +57,10 @@ class Traffic_Light:
             pass
         
 class Road: #do i NEED this road class, or can this just be in the simulation clasS? 
-    def __init__(self, length = 100, density = 10/100, speed_limit = 5, bend = False):
+    def __init__(self, length = 100, density = 1/100, speed_limit = 2, bend = False):
         self.length = length
         self.density = density
-        self.number = density * length
+        self.number = int(density * length)
         self.speed_limit = speed_limit 
         self.bend = bend
         
@@ -89,21 +89,30 @@ class Simulation:
         self.positions = None
         self.data = []
 
-        return
-
     def initialize(self):
-        #print(self.Road.length)
-        self.positions = random.sample(range(self.Road.length), int(self.Road.length * self.Road.density)) 
-        self.positions.sort()
-        self.velocities = [random.randint(0, self.Vehicle.max_velocity) for i in range(len(self.positions))]
-        
-        if np.shape(self.velocities) != np.shape(self.positions):
-            print("Number of cars: %s" %np.shape(self.positions))
-            print("Number of velocities: %s" %np.shape(self.velocities))
-            raise Exception("Error - not all cars have velocity, or too many velocities, not enough cars")
+        if self.Road.density > 1.0:
+            raise ValueError("Density cannot be greater than 1.0")
+    
+        num_vehicles = int(self.Road.length * self.Road.density)
 
+        if num_vehicles > self.Road.length:
+            raise ValueError("Density is too high relative to road length")
+        
         else:
-            print("Vehicles initialised successfully... starting simulation.")
+            #print(self.Road.length)
+            self.positions = random.sample(range(self.Road.length), int(self.Road.length * self.Road.density)) 
+            self.positions.sort()
+            self.velocities = [random.randint(0, self.Vehicle.max_velocity) for i in range(len(self.positions))]
+            
+            if np.shape(self.velocities) != np.shape(self.positions):
+                print("Number of cars: %s" %np.shape(self.positions))
+                print("Number of velocities: %s" %np.shape(self.velocities))
+                raise Exception("Error - not all cars have velocity, or too many velocities, not enough cars")
+
+            #else:
+                #print("Vehicles initialised successfully... starting simulation.")
+
+        return num_vehicles
 
     def update(self, steps):
         if self.velocities is None or self.positions is None:
@@ -133,22 +142,85 @@ class Simulation:
 
         return self.data
 
+    def flow_rate_ref_point(self, time_interval, reference_point=0):
+        num_vehicles_passed = 0
+        total_loops = 0
 
-    def plot(self, steps, plot = True):
+        for k in range(self.Road.number):
+            positions = [entry[k] for entry in self.data]
+            previous_position = positions[0]
+            loops = 0
+
+            for i in range(len(positions)):
+                next_position = positions[(i + 1) % len(positions)]
+
+                if previous_position > next_position:
+                    loops += 1
+
+                if (next_position >= reference_point and positions[i] <= reference_point) or (next_position <= reference_point and positions[i] >= reference_point):
+                    num_vehicles_passed += loops
+
+                previous_position = positions[i]
+
+            total_loops += loops
+
+        # Calculate the total number of loops
+        total_loops += (num_vehicles_passed / len(self.data))
+
+        print("Total Loops: %f" % total_loops)
+        print("Num Vehicles Passed: %d" % num_vehicles_passed)
+        
+        flow_rate = (num_vehicles_passed / len(self.data)) * (1 / time_interval)
+        print('Flow rate = %f' % flow_rate)
+
+        return flow_rate
+    
+    def flow_rate_loop(self, time_interval):
+        num_passes = 0
+        print(self.Vehicle.max_velocity)
+
+        for k in range(self.Road.number):
+            positions = [entry[k] for entry in self.data]
+            previous_position = positions[-1]
+
+            for position in positions:
+                if previous_position > position:
+                    print('position = %d' % position)
+                    print('previous position = %d' % previous_position)
+                    print(self.Road.length - self.Vehicle.max_velocity + 1)
+                    print(self.Vehicle.max_velocity)
+
+                    if position < self.Vehicle.max_velocity + 1 and previous_position > self.Road.length - self.Vehicle.max_velocity - 1:
+                        print("yes")
+                        num_passes += 1
+
+                    else:
+                        print("no")
+
+                previous_position = position
+
+        print("Num Vehicles Passed: %d" % num_passes)
+        
+        flow_rate = (num_passes / time_interval)
+        print('Flow rate = %f' % flow_rate)
+
+        return flow_rate
+
+            
+    def plot_timespace(self, steps, plot = True):
         if plot == True:
             print('Simulation Complete. Plotting graph...')
             time_steps = range(steps)
             new_data = []
-            self.Road.number = int(self.Road.number)
         
             for i in range(self.Road.number):
                 #print(self.data[i][1])
                 print('Vehicle ID: %s' %i)
                 new_data = [item[i] for item in self.data]
                 print('Position List: %s' %new_data)
-                plt.plot(new_data, time_steps, '.')
+                plt.plot(new_data, time_steps, '-')
 
-            plt.title('Vehicle Position changing as a function of time')
+            plt.title('Time Space diagram')
             plt.xlabel('Vechicle Position')
             plt.ylabel('Time')
             plt.show()
@@ -156,57 +228,50 @@ class Simulation:
         else:
             print('Simulation Complete. Set plot = True to see the plot.')
         
-    def plot_density(self, plot=True):
-        sim.initialize()
-        sim.update(100)
+    def plot_density(self, steps, plot=True, isAvg = True):
+        densities = []
+        flow_rates = []
+        flow_rate_avgs = []
+        
         if plot:
-            avg_velocity = []
-            #velocities = []
+            if isAvg:
+                for i in range(1, 999):
+                    p = 0.001*i
+                    print('density: %f' % p)
+                    densities.append(p)
 
-            for i in range(min(1500, len(self.data)), min(2000, len(self.data))):
-                avg_velocity.append(np.mean([position[i] for position in self.data] / self.Road.length * self.Road.density))
+                    for j in range(30):  
+                        sim = Simulation()
+                        sim.Road = Road(density= p)                                  
+                        sim.initialize()
+                        sim.update(steps)
+                        #print(sim.flow_rate(steps))
+                        flow_rates.append(sim.flow_rate_loop(steps))       
 
-            densities = np.linspace(0.02, 1, num=49, endpoint=False)
+                    flow_rate_avg = sum(flow_rates)/30
+                    flow_rate_avgs.append(flow_rate_avg)
+                    print(flow_rate_avgs)
 
-            flow_rate = np.multiply(densities, avg_velocity)
+                #print("Density:" + str(densities))
+                #print(np.shape(densities))
+                #print("Flow Rate:" + str(flow_rate_avg))
+                #print(np.shape(flow_rate_avg))
+                plt.plot(densities, flow_rate_avgs, linestyle = '-')
+                plt.title('Average Flow Density Relationship')
+                plt.xlabel("Density")
+                plt.ylabel("Flow rate")
+                plt.show()
 
-            plt.plot(densities, flow_rate)
-            plt.xlabel('Density')
-            plt.ylabel('Flow Rate')
-            plt.show()
 
-            #TODO: define plot fucntion for density and plot visualisaton of cars on road.
-
-
-
-random.seed(500)
+random.seed(200)
 steps = 100
 sim = Simulation()
+sim.Vehicle = Vehicle(max_velocity= 5, slow_prob= 0.5)
+sim.Road = Road(length= 1000, density=10/1000)
 sim.initialize()
-print("Simulation.initalize called.")
 sim.update(steps)
-print("Simulation.update called.")
-sim.plot(steps)
-sim.plot_density()
+sim.flow_rate_loop(steps)
+sim.plot_timespace(steps)
+sim.plot_density(steps, isAvg = True)
 
 
-for i in range(1, 20):
-        p = 0.05*i
-        densities.append(p) #density
-        Road(density= p) 
-        sim.initialize()
-        sim.update(100)#simulation
-        p_all_flow_rates = [] #store the flow rates of each simulation for one density
-    
-        for j in range(50): #repeat simulation each density for 20 times
-            for i in range(steps): #time step = 200
-                sim.update()
-            p_all_flow_rates.append(T.flow_count/time_step)
-
-    #average flow rate for one density
-        p_flow_rate = sum(p_all_flow_rates)/50.0
-        flow_rate.append(p_flow_rate)
-
-plt.plot(densities,flow_rate)
-plt.xlabel("Density")
-plt.ylabel("Flow rate")
