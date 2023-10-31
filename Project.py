@@ -4,7 +4,7 @@ import random
 
 class Vehicle:
     def __init__ (self, length = 1, target_velocity = 4, max_velocity = 5, 
-                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.3):
+                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.3, kindness = False, reckless = False):
         #self.id = id
         self.length = length
         self.velocity = []
@@ -15,6 +15,8 @@ class Vehicle:
         self.acceleration_time = acceleration_time
         self.deceleration_time = deceleration_time
         self.slow_prob = slow_prob
+        self.kindness = kindness
+        self.reckless = reckless
 
     def acceleration(self):
         factor = (self.target_velocity - self.velocity)/self.acceleration_time
@@ -78,8 +80,12 @@ class Network:
     def __init__(self) -> None:
         self.roads = []
         self.connect = {}
+        self.Road = Road()
 
     def connect_roads(self, roads):
+        #TODO: think of a way to join roads at a point in the road - this may be not the best way to do this, 
+        #since the road generation is quite iffy. could set the joint at the end of the road? 
+        #road generation is not a np.zeros array, so specifying a joint will be hard.
         pass
 class Simulation:
     def __init__(self):
@@ -125,6 +131,15 @@ class Simulation:
                 for i in range(len(self.positions)):
                     velocity = self.velocities[i]
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
+
+                    if self.Vehicle.kindness = True:
+                        kindness = 1 + np.random.random()
+                        headway = headway * kindness
+
+                    if self.Vehicle.reckless = True:
+                        reckless = np.random.random()
+                        headway = headway * reckless
+
                     velocity = min(velocity + 1, self.Vehicle.max_velocity)
                     velocity = min(velocity, headway)
 
@@ -266,7 +281,7 @@ class Simulation:
 random.seed(200)
 steps = 100
 sim = Simulation()
-sim.Vehicle = Vehicle(max_velocity= 5, slow_prob= 0.5)
+sim.Vehicle = Vehicle(max_velocity= 5, slow_prob= 0.5, kindness = True)
 sim.Road = Road(length= 1000, density=10/1000)
 sim.initialize()
 sim.update(steps)
