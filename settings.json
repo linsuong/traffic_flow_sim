@@ -1,5 +1,5 @@
 {
-    "python.defaultInterpreterPath": "C:\\Users\\linus\\AppData\\Local\\Microsoft\\WindowsApps\\python3.10.exe",
+    //"python.defaultInterpreterPath": "C:\\Users\\linus\\AppData\\Local\\Microsoft\\WindowsApps\\python3.10.exe",
     "python.autoComplete.extraPaths": ["./base.py"],
     "window.zoomLevel": 1,
     "security.workspace.trust.untrustedFiles": "open",
