@@ -139,9 +139,9 @@ class Simulation:
             raise Exception("Please call initialize() before update()")
         
         else:
+
             for _ in range(steps):
                 new_velocities = []
-
                 for i in range(len(self.positions)):
                     velocity = self.velocities[i]
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
@@ -160,16 +160,19 @@ class Simulation:
                     if velocity > 0 and random.random() < self.Vehicle.slow_prob:
                         velocity = max(velocity - 1, 0)
 
+                    print("velocity and position at time step(", _ ,"):", velocity)
                     new_velocities.append(velocity)
+                    
 
-                self.velocities = new_velocities
+                self.velocities.append(new_velocities)
                 new_positions = [(pos + vel) % self.Road.length for pos, vel in zip(self.positions, self.velocities)]
                 self.positions = new_positions
                 self.data.append(self.positions[:])
 
-        print(self.data)
-
-        return self.data
+        print("data: ", self.data)
+        print("velocities: ", self.velocities)
+        
+        return self.data, self.velocities, self.positions
 
     def flow_rate_ref_point(self, time_interval, reference_point=0):
         num_vehicles_passed = 0
@@ -196,11 +199,11 @@ class Simulation:
         # Calculate the total number of loops
         total_loops += (num_vehicles_passed / len(self.data))
 
-        print("Total Loops: %f" % total_loops)
-        print("Num Vehicles Passed: %d" % num_vehicles_passed)
+        #print("Total Loops: %f" % total_loops)
+        #print("Num Vehicles Passed: %d" % num_vehicles_passed)
         
         flow_rate = (num_vehicles_passed / len(self.data)) * (1 / time_interval)
-        print('Flow rate = %f' % flow_rate)
+        #print('Flow rate = %f' % flow_rate)
 
         return flow_rate
     
@@ -288,6 +291,27 @@ class Simulation:
         else:
             print('Simulation Complete. Set plot = True to see the plot.')
         
+    def plot_velocity(self, steps, plot=True, save=False, folder=None):
+
+        if plot:
+            time_steps = range(steps)
+
+            for i in range(self.Road.number):
+                print("Vehicle ID: %s" % i)
+                velocity_data = self.velocities  # Use self.velocities directly
+                print("Velocity List: %s" % velocity_data)
+                plt.plot(velocity_data, time_steps, '.', markersize=1)
+
+            plt.gca().xaxis.set_ticks_position('top')
+            plt.gca().invert_yaxis()
+            plt.title("Velocity - Time diagram")
+            plt.xlabel("Vehicle Velocity")
+            plt.ylabel("Time")
+            plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
+            plt.show()
+
+
+            
     def plot_density(self, steps, plot=True, isAvg = True, save = False, folder = None, number = None):
         densities = []
         flow_rate = []
@@ -337,128 +361,23 @@ class Simulation:
                 else:
                     plt.show()
 
-debug = False
+
+        
+debug = True
 
 if debug:
-    steps = 1000
+    steps = 100
     seeds = 100
     random.seed(seeds)
     sim = Simulation()
     sim.Vehicle = Vehicle(max_velocity = 5, slow_prob = 0.5)
-    sim.Road = Road(length= 1000, density=30/100)
+    sim.Road = Road(length= 100, density=2/100)
     sim.initialize()
     sim.update(steps)
     sim.flow_rate_loop(steps)
     sim.plot_timespace(steps)
+    sim.plot_velocity(steps)
     sim.plot_density(steps, isAvg = True)
 
 
-steps = 1000
-seeds = 100
 
-folder_counter_1 = 0
-folder_counter_2 = 0
-slow_prob_range = np.arange(0, 0.8, 0.2)
-
-random.seed(seeds)
-sim = Simulation()
-
-density_iteration = True
-velocity_iteration = True
-
-if density_iteration == True:
-    counter_1 = 0
-    counter_2 = 0
-
-    for slow_prob in slow_prob_range:
-        for density_range in range(100, 800, 100):
-            counter_1 = counter_1 + 1
-            folder = os.path.join(r"C:\Users\linus\Documents\traffic simulation plots\densities\kindess")
-
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-
-            sim = Simulation()
-            sim.Vehicle = Vehicle(max_velocity = 5, slow_prob = slow_prob, kindness = True)
-            sim.Road = Road(length= 1000, density = density_range/1000)
-            sim.initialize()
-            sim.update(steps)
-            sim.flow_rate_loop(steps)
-            sim.plot_timespace(steps, save = True, folder = folder, number = counter_1)
-            description = os.path.join(folder, "config.txt")
-
-    with open(description, "w") as description_file:
-        description_file.write("configuration(seed, max_velocity, slow_prob, kindess/recklness/none, length, steps)")
-        description_file.write(f"{seeds}, 5, 0.5, kindness = True, 1000, {steps}")
-
-    for slow_prob in slow_prob_range:
-        for density_range in range(10, 1000, 100):
-            counter_2 = counter_2 + 1
-            print("counter =", counter_1)
-            folder = os.path.join(r"C:\Users\linus\Documents\traffic simulation plots\densities\reckless")
-
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-
-            sim = Simulation()
-            sim.Vehicle = Vehicle(max_velocity = 5, slow_prob = slow_prob, reckless = True)
-            sim.Road = Road(length= 1000, density = density_range/1000)
-            sim.initialize()
-            sim.update(steps)
-            sim.flow_rate_loop(steps)
-            sim.plot_timespace(steps, save = True, folder = folder, number = counter_2)
-            description = os.path.join(folder, "config.txt")
-
-    with open(description, "w") as description_file:
-        description_file.write("configuration(seed, max_velocity, slow_prob, kindess/recklness/none, length, steps)")
-        description_file.write(f"{seeds}, 5, 0.5, reckless = True, 1000, {steps}")
-
-if velocity_iteration == True:
-    counter_1 = 0
-    counter_2 = 0
-
-    for slow_prob in slow_prob_range:
-        for velocity_range in range(5, 55, 10):
-            counter_2 = counter_2 + 1
-            print("counter =", counter_1)
-            folder = r"C:\Users\linus\Documents\traffic simulation plots\velocities\kindness"
-
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-
-            sim = Simulation()
-            sim.Vehicle = Vehicle(max_velocity = velocity_range, slow_prob = slow_prob, kindness = True)
-            sim.Road = Road(length= 1000, density=100/1000)
-            sim.initialize()
-            sim.update(steps)
-            sim.flow_rate_loop(steps)
-            sim.plot_timespace(steps, save = True, folder = folder, number = counter_1)
-            sim.plot_density(steps, isAvg = True, save = True, folder = folder, number = counter_1)
-            description = os.path.join(r"C:\Users\linus\Documents\traffic simulation plots\velocities\kindness", "config.txt")
-
-        with open(description, "w") as description_file:
-            description_file.write("configuration(max_velocity, slow_prob, kindess/recklness/none, length, density, steps)")
-            description_file.write(f"{seeds}, {velocity_range}, 0.5, kindness = True, 1000, 100/1000, {steps}")
-
-    for slow_prob in slow_prob_range:
-        for velocity_range in range(5, 55, 10):
-            counter_2 = counter_2 + 1
-            print("counter =", counter_1)
-            folder = r"C:\Users\linus\Documents\traffic simulation plots\velocities\reckless"
-
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-
-            sim = Simulation()
-            sim.Vehicle = Vehicle(max_velocity = velocity_range, slow_prob = slow_prob, reckless = True)
-            sim.Road = Road(length= 1000, density=100/1000)
-            sim.initialize()
-            sim.update(steps)
-            sim.flow_rate_loop(steps)
-            sim.plot_timespace(steps, save = True, folder = folder, number = counter_2)
-            sim.plot_density(steps, isAvg = True, save = True, folder = folder, number = counter_2)
-            description = os.path.join(r"C:\Users\linus\Documents\traffic simulation plots\velocities\reckless", "config.txt")
-
-        with open(description, "w") as description_file:
-            description_file.write("configuration(max_velocity, slow_prob, kindess/recklness/none, length, density, steps)")
-            description_file.write(f"{seeds}, {velocity_range}, 0.5, reckless = True, 1000, 100/1000, {steps}")
