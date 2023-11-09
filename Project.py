@@ -271,7 +271,7 @@ class Simulation:
             plt.gca().xaxis.set_ticks_position('top')    
             plt.gca().invert_yaxis()
             plt.title('Time Space diagram')
-            plt.xlabel('Vechicle Position')
+            plt.xlabel('Vehicle Position')
             plt.ylabel('Time')
             plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize= 9, color='black')
 
