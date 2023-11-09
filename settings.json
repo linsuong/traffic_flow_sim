@@ -1,0 +1,16 @@
+{
+    //"python.defaultInterpreterPath": "C:\\Users\\linus\\AppData\\Local\\Microsoft\\WindowsApps\\python3.10.exe",
+    "python.autoComplete.extraPaths": ["./base.py"],
+    "window.zoomLevel": 1,
+    "security.workspace.trust.untrustedFiles": "open",
+    "terminal.integrated.enableMultiLinePasteWarning": false,
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "workbench.colorTheme": "Material Theme Ocean High Contrast",
+    "workbench.sideBar.location": "right",
+    "editor.stickyScroll.enabled": true,
+    "tabnine.experimentalAutoImports": true,
+    "prettier.useTabs": true,
+    "workbench.iconTheme": "vscode-icons",
+    "jupyter.interactiveWindow.creationMode": "perFile"
+}
