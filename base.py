@@ -96,6 +96,7 @@ class Network:
         #since the road generation is quite iffy. could set the joint at the end of the road? 
         #road generation is not a np.zeros array, so specifying a joint will be hard.
         pass
+    
 class Simulation:
     def __init__(self, save = False, output_dir = None):
         self.Road = Road()
@@ -173,6 +174,83 @@ class Simulation:
         print("velocities: ", self.velocities)
         
         return self.data, self.velocities, self.positions
+
+    def update1(self, steps):
+        if self.velocities is None or self.positions is None:
+            raise Exception("Please call initialize() before update()")
+        
+        else:
+            velocity_data = []  # Separate list to store velocities
+
+            for _ in range(steps):
+                new_velocities = []
+
+                for i in range(len(self.positions)):
+                    velocity = self.velocities[i]
+                    headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
+
+                    if self.Vehicle.kindness == True:
+                        kindness = 1 + np.random.random()
+                        headway = headway * kindness
+
+                    if self.Vehicle.reckless == True:
+                        reckless = np.random.random()
+                        headway = headway * reckless
+
+                    velocity = min(velocity + 1, self.Vehicle.max_velocity)
+                    velocity = min(velocity, headway)
+
+                    if velocity > 0 and random.random() < self.Vehicle.slow_prob:
+                        velocity = max(velocity - 1, 0)
+
+                    new_velocities.append(velocity)
+
+                velocity_data.append(new_velocities)
+
+                new_positions = [(pos + vel) % self.Road.length for pos, vel in zip(self.positions, new_velocities)]
+
+                self.data.append(new_positions[:])
+
+        print(velocity_data)
+
+        return self.data, velocity_data
+
+    def update2(self, steps):
+        if self.velocities is None or self.positions is None:
+            raise Exception("Please call initialize() before update()")
+        
+        else:
+            for _ in range(steps):
+                new_velocities = []
+
+                for i in range(len(self.positions)):
+                    velocity = self.velocities[i]
+                    headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
+
+                    if self.Vehicle.kindness == True:
+                        kindness = 1 + np.random.random()
+                        headway = headway * kindness
+
+                    if self.Vehicle.reckless == True:
+                        reckless = np.random.random()
+                        headway = headway * reckless
+
+                    velocity = min(velocity + 1, self.Vehicle.max_velocity)
+                    velocity = min(velocity, headway)
+
+                    if velocity > 0 and random.random() < self.Vehicle.slow_prob:
+                        velocity = max(velocity - 1, 0)
+
+                    new_velocities.append(velocity)
+
+                self.velocities = new_velocities
+                new_positions = [(pos + vel) % self.Road.length for pos, vel in zip(self.positions, self.velocities)]
+                self.positions = new_positions
+                self.data.append(self.velocities[:])  # Change this line to append velocities instead of positions
+
+        print(self.data)
+
+        return self.data
 
     def flow_rate_ref_point(self, time_interval, reference_point=0):
         num_vehicles_passed = 0
