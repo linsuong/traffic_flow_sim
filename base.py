@@ -67,23 +67,35 @@ class Traffic_Light:
             #TODO = set timer for green to turn into red - can this be done compactly?
             pass
         
-class Road: #do i NEED this road class, or can this just be in the simulation clasS? 
-    def __init__(self, length = 100, density = 1/100, speed_limit = 2, bend = False):
+class Road:
+    def __init__(self, length=100, density=1/100, speed_limit=2, bend=False):
         self.length = length
         self.density = density
         self.number = int(density * length)
-        self.speed_limit = speed_limit 
+        self.speed_limit = speed_limit
         self.bend = bend
-        
-'''
+        self.obstacle_start = None      # Start time of the obstacle
+        self.obstacle_end = None        # End time of the obstacle
+        self.obstacle_start_pos = None  # Start position of the obstacle
+        self.obstacle_end_pos = None    # End position of the obstacle
+
+    def has_obstacle(self, position, time_step):
+        # Check if there is an obstacle at the current position and time
+        return (
+            self.obstacle_start is not None
+            and self.obstacle_end is not None
+            and self.obstacle_start <= time_step < self.obstacle_end
+            and self.obstacle_start_pos <= position < self.obstacle_end_pos
+        )
+
+    '''
     def bend(angle, entrance_length, exit_length):
         if self.bend = True:
             angle = 
 
             #TODO: Add "bend" fucntion to Road class to simulate bends
 
-'''
-
+    '''
 class Network: 
     #TODO: add connection function that joins roads together to form a network.
     def __init__(self) -> None:
@@ -104,6 +116,7 @@ class Simulation:
         self.velocities = None
         self.positions = None
         self.data = []
+        self.velocity_data = []
         self.output_dir = output_dir
 
         if save:
@@ -121,9 +134,9 @@ class Simulation:
         
         else:
             #print(self.Road.length)
-            self.positions = random.sample(range(self.Road.length), int(self.Road.length * self.Road.density)) 
+            self.positions = random.choices(range(self.Road.length), k=num_vehicles)
             self.positions.sort()
-            self.velocities = [random.randint(0, self.Vehicle.max_velocity) for i in range(len(self.positions))]
+            self.velocities = [random.randint(1, self.Vehicle.max_velocity) for i in range(len(self.positions))]
             
             if np.shape(self.velocities) != np.shape(self.positions):
                 print("Number of cars: %s" %np.shape(self.positions))
@@ -135,122 +148,49 @@ class Simulation:
 
         return num_vehicles
 
+    def add_obstacle(self, start_time, end_time, start_pos, end_pos):
+            # Set obstacle parameters in the Road class
+            self.Road.obstacle_start = start_time
+            self.Road.obstacle_end = end_time
+            self.Road.obstacle_start_pos = start_pos
+            self.Road.obstacle_end_pos = end_pos
+
     def update(self, steps):
         if self.velocities is None or self.positions is None:
             raise Exception("Please call initialize() before update()")
         
         else:
-
-            for _ in range(steps):
-                new_velocities = []
-                for i in range(len(self.positions)):
-                    velocity = self.velocities[i]
-                    headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
-
-                    if self.Vehicle.kindness == True:
-                        kindness = 1 + np.random.random()
-                        headway = headway * kindness
-
-                    if self.Vehicle.reckless == True:
-                        reckless = np.random.random()
-                        headway = headway * reckless
-
-                    velocity = min(velocity + 1, self.Vehicle.max_velocity)
-                    velocity = min(velocity, headway)
-
-                    if velocity > 0 and random.random() < self.Vehicle.slow_prob:
-                        velocity = max(velocity - 1, 0)
-
-                    print("velocity and position at time step(", _ ,"):", velocity)
-                    new_velocities.append(velocity)
-                    
-
-                self.velocities.append(new_velocities)
-                new_positions = [(pos + vel) % self.Road.length for pos, vel in zip(self.positions, self.velocities)]
-                self.positions = new_positions
-                self.data.append(self.positions[:])
-
-        print("data: ", self.data)
-        print("velocities: ", self.velocities)
-        
-        return self.data, self.velocities, self.positions
-
-    def update1(self, steps):
-        if self.velocities is None or self.positions is None:
-            raise Exception("Please call initialize() before update()")
-        
-        else:
-            velocity_data = []  # Separate list to store velocities
-
-            for _ in range(steps):
+            for step in range(steps):
                 new_velocities = []
 
                 for i in range(len(self.positions)):
                     velocity = self.velocities[i]
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
+                    print(headway) #TODO: check this headway calculation - is % working like intended?
 
-                    if self.Vehicle.kindness == True:
-                        kindness = 1 + np.random.random()
-                        headway = headway * kindness
-
-                    if self.Vehicle.reckless == True:
-                        reckless = np.random.random()
-                        headway = headway * reckless
-
-                    velocity = min(velocity + 1, self.Vehicle.max_velocity)
-                    velocity = min(velocity, headway)
+                    if self.Road.has_obstacle(self.positions[i], step):
+                        # If there's an obstacle and within the obstacle duration, slow down or stop
+                        velocity = min(velocity + 1, headway - 1)
+                    else:
+                        # Accelerate under normal conditions
+                        velocity = min(velocity + 1, self.Vehicle.max_velocity)
+                        velocity = min(velocity, headway - 1) #TODO: check this line of code - make a check for headway
 
                     if velocity > 0 and random.random() < self.Vehicle.slow_prob:
                         velocity = max(velocity - 1, 0)
 
                     new_velocities.append(velocity)
 
-                velocity_data.append(new_velocities)
-
+                self.velocity_data.append(new_velocities)
+                self.velocities = new_velocities
                 new_positions = [(pos + vel) % self.Road.length for pos, vel in zip(self.positions, new_velocities)]
-
+                self.positions = new_positions
                 self.data.append(new_positions[:])
 
-        print(velocity_data)
-
-        return self.data, velocity_data
-
-    def update2(self, steps):
-        if self.velocities is None or self.positions is None:
-            raise Exception("Please call initialize() before update()")
-        
-        else:
-            for _ in range(steps):
-                new_velocities = []
-
-                for i in range(len(self.positions)):
-                    velocity = self.velocities[i]
-                    headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
-
-                    if self.Vehicle.kindness == True:
-                        kindness = 1 + np.random.random()
-                        headway = headway * kindness
-
-                    if self.Vehicle.reckless == True:
-                        reckless = np.random.random()
-                        headway = headway * reckless
-
-                    velocity = min(velocity + 1, self.Vehicle.max_velocity)
-                    velocity = min(velocity, headway)
-
-                    if velocity > 0 and random.random() < self.Vehicle.slow_prob:
-                        velocity = max(velocity - 1, 0)
-
-                    new_velocities.append(velocity)
-
-                self.velocities = new_velocities
-                new_positions = [(pos + vel) % self.Road.length for pos, vel in zip(self.positions, self.velocities)]
-                self.positions = new_positions
-                self.data.append(self.velocities[:])  # Change this line to append velocities instead of positions
-
+        print(self.velocity_data)
         print(self.data)
 
-        return self.data
+        return self.data, self.velocity_data
 
     def flow_rate_ref_point(self, time_interval, reference_point=0):
         num_vehicles_passed = 0
@@ -301,7 +241,7 @@ class Simulation:
         for k in range(self.Road.number):
             positions = [entry[k] for entry in self.data]
             previous_position = positions[-1]
-
+            #TODO: grab velocity of car that passes through flow points - add a way to collect avgerages at different times
             for position in positions:
                 if previous_position > position:
                     print('position = %d' % position)
@@ -326,9 +266,9 @@ class Simulation:
         return flow_rate
 
             
-    def plot_timespace(self, steps, plot = True, save = False, folder = None, number = None):
-        """
-        plots time space diagram using data from self.data
+    def plot_timespace(self, steps, plot=True, save=False, folder=None, number=None):
+        '''
+            plots time space diagram using data from self.data
 
         Args:
             steps (int): time step
@@ -336,38 +276,72 @@ class Simulation:
             save (bool, optional): If True, will save to file. Defaults to False.
             folder (_type_, optional): Save location - required if save is True. Defaults to None.
             number (_type_, optional): Used for keeping track of plots when iterating. Defaults to None.
-        """
-        if plot == True:
+        
+        '''
+        
+        if plot:
             print('Simulation Complete. Plotting graph...')
             time_steps = range(steps)
             new_data = []
-        
-            for i in range(self.Road.number):
-                #print(self.data[i][1])
-                print('Vehicle ID: %s' %i)
-                new_data = [item[i] for item in self.data]
-                print('Position List: %s' %new_data)
-                plt.plot(new_data, time_steps, '.', markersize = 0.5, color = 'gray')
 
-            plt.gca().xaxis.set_ticks_position('top')    
+            for i in range(self.Road.number):
+                print('Vehicle ID: %s' % i)
+                new_data = [item[i] for item in self.data]
+                print('Position List: %s' % new_data)
+
+                # Plotting vehicle positions
+                plt.plot(new_data, time_steps, '.', markersize=0.5, color='gray')
+
+                # Plotting obstacle
+                if (
+                    self.Road.obstacle_start is not None
+                    and self.Road.obstacle_end is not None
+                ):
+                    obstacle_range = range(
+                        self.Road.obstacle_start_pos, self.Road.obstacle_end_pos
+                    )
+                    obstacle_time_range = range(
+                        self.Road.obstacle_start, self.Road.obstacle_end
+                    )
+
+                    for obstacle_pos in obstacle_range:
+                        if obstacle_pos < len(new_data) and obstacle_pos >= 0:
+                            plt.plot(
+                                new_data[obstacle_pos],
+                                time_steps[obstacle_pos],
+                                'rx',
+                                markersize=5,
+                            )
+
+            plt.gca().xaxis.set_ticks_position('top')
             plt.gca().invert_yaxis()
             plt.title('Time Space diagram')
             plt.xlabel('Vehicle Position')
             plt.ylabel('Time')
-            plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize= 9, color='black')
+            plt.figtext(
+                0.1,
+                0.005,
+                f'Density = {self.Road.density}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}',
+                fontsize=9,
+                color='black',
+            )
 
             if save:
-                self.output_dir = os.path.join(folder, f'Time Space Plot {number}.png')
+                self.output_dir = os.path.join(
+                    folder, f'Time Space Plot {number}.png'
+                )
                 fig = plt.gcf()
-                fig.set_size_inches(12,12)
-                plt.savefig(self.output_dir, dpi = 100)
+                fig.set_size_inches(12, 12)
+                plt.savefig(self.output_dir, dpi=100)
                 plt.clf()
 
             else:
                 plt.show()
 
         else:
-            print('Simulation Complete. Set plot = True to see the plot.')
+            print(
+                'Simulation Complete. Set plot = True to see the plot.'
+            )
         
     def plot_velocity(self, steps, plot=True, save=False, folder=None):
 
@@ -376,17 +350,17 @@ class Simulation:
 
             for i in range(self.Road.number):
                 print("Vehicle ID: %s" % i)
-                velocity_data = self.velocities  # Use self.velocities directly
+                velocity_data = [item [i] for item in self.velocity_data]
                 print("Velocity List: %s" % velocity_data)
-                plt.plot(velocity_data, time_steps, '.', markersize=1)
+                plt.plot(velocity_data, time_steps, '-', markersize=1, color='grey')
 
-            plt.gca().xaxis.set_ticks_position('top')
-            plt.gca().invert_yaxis()
-            plt.title("Velocity - Time diagram")
-            plt.xlabel("Vehicle Velocity")
-            plt.ylabel("Time")
-            plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-            plt.show()
+                #plt.gca().xaxis.set_ticks_position('top')
+                #plt.gca().invert_yaxis()
+                plt.title("Velocity - Time diagram")
+                plt.xlabel("Vehicle Velocity")
+                plt.ylabel("Time")
+                plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
+                plt.show()
 
 
             
@@ -448,9 +422,10 @@ if debug:
     seeds = 100
     random.seed(seeds)
     sim = Simulation()
-    sim.Vehicle = Vehicle(max_velocity = 5, slow_prob = 0.5)
-    sim.Road = Road(length= 100, density=2/100)
+    sim.Vehicle = Vehicle(max_velocity = 10, slow_prob = 0.5)
+    sim.Road = Road(length= 1000, density=300/1000)
     sim.initialize()
+    sim.add_obstacle(50, 100, 5000, 6000)
     sim.update(steps)
     sim.flow_rate_loop(steps)
     sim.plot_timespace(steps)
