@@ -166,18 +166,26 @@ class Simulation:
                 for i in range(len(self.positions)):
                     velocity = self.velocities[i]
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
-                    print(headway) #TODO: check this headway calculation - is % working like intended?
+                    print("headway = ", headway)
 
-                    if self.Road.has_obstacle(self.positions[i], step):
+                    if headway == 0:
+                        headway = 1
+
+                    #print(headway) #TODO: check this headway calculation - is % working like intended?
+
+                    if self.Road.has_obstacle(self.positions[i], steps):
                         # If there's an obstacle and within the obstacle duration, slow down or stop
                         velocity = min(velocity + 1, headway - 1)
+
                     else:
                         # Accelerate under normal conditions
                         velocity = min(velocity + 1, self.Vehicle.max_velocity)
                         velocity = min(velocity, headway - 1) #TODO: check this line of code - make a check for headway
+                        print("before slow prob", velocity)
 
-                    if velocity > 0 and random.random() < self.Vehicle.slow_prob:
+                    if velocity > 0 and random.random() < self.Vehicle.slow_prob: 
                         velocity = max(velocity - 1, 0)
+                        print("after slow prob", velocity)
 
                     new_velocities.append(velocity)
 
@@ -362,7 +370,6 @@ class Simulation:
                 plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
                 plt.show()
 
-
             
     def plot_density(self, steps, plot=True, isAvg = True, save = False, folder = None, number = None):
         densities = []
@@ -418,14 +425,14 @@ class Simulation:
 debug = True
 
 if debug:
-    steps = 100
+    steps = 1000
     seeds = 100
     random.seed(seeds)
     sim = Simulation()
     sim.Vehicle = Vehicle(max_velocity = 10, slow_prob = 0.5)
     sim.Road = Road(length= 1000, density=300/1000)
     sim.initialize()
-    sim.add_obstacle(50, 100, 5000, 6000)
+    sim.add_obstacle(50, 60, 200, 6000)
     sim.update(steps)
     sim.flow_rate_loop(steps)
     sim.plot_timespace(steps)
