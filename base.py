@@ -380,7 +380,7 @@ class Simulation:
 
                 else:
                     plt.show()
-        
+
 debug = True
 
 if debug:
@@ -394,7 +394,7 @@ if debug:
     sim.add_obstacle(start_time=200, end_time=600, position=500, length=10)
     sim.update(steps)
     sim.flow_rate_loop(steps)
-    sim.plot_timespace(steps, plot_obstacle= False)
+    sim.plot_timespace(steps, plot_obstacle= True)
     sim.plot_velocity(steps)
     sim.plot_density(steps)
 
