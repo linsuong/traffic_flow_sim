@@ -161,6 +161,7 @@ class Simulation:
         else:
             for step in range(steps):
                 new_velocities = []
+                new_positions = []
 
                 for i in range(len(self.positions)):
                     velocity = self.velocities[i]
@@ -168,7 +169,14 @@ class Simulation:
                                             len(self.positions)] - self.positions[i] - 1) % self.Road.length
 
                     if self.Road.has_obstacle(self.positions[i], step):
-                        velocity = min(velocity + 1, headway - 1)
+                        distance = self.Road.obstacle.position - self.positions[i]
+
+                        if distance < velocity:
+                            velocity = max(0, distance - 1)
+
+                        else:
+                            velocity = min(velocity + 1, self.Vehicle.max_velocity)
+                            velocity = min(velocity, max(headway - 1, 0))
 
                     else:
                         velocity = min(velocity + 1, self.Vehicle.max_velocity)
@@ -178,6 +186,9 @@ class Simulation:
                         velocity = max(velocity - 1, 0)
 
                     new_velocities.append(velocity)
+
+                    new_pos = (self.positions[i] + velocity) % self.Road.length
+                    new_positions.append(new_pos)
 
                 self.velocity_data.append(new_velocities)
                 self.velocities = new_velocities
@@ -389,9 +400,9 @@ if debug:
     random.seed(seeds)
     sim = Simulation()
     sim.Vehicle = Vehicle(max_velocity=10, slow_prob=0.5)
-    sim.Road = Road(length=1000, density=30/1000)
+    sim.Road = Road(length=1000, density=5/1000)
     sim.initialize()
-    sim.add_obstacle(start_time=200, end_time=600, position=500, length=10)
+    sim.add_obstacle(start_time=1, end_time=11, position=500, length=10)
     sim.update(steps)
     sim.flow_rate_loop(steps)
     sim.plot_timespace(steps, plot_obstacle= True)
