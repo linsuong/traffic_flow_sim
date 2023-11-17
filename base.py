@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.patches as patches
 from matplotlib.colors import Normalize
 import random
 import os
@@ -70,7 +71,7 @@ class Traffic_Light:
             pass
       
 class Obstacle:
-    def __init__(self, start_time, end_time, position, length):
+    def __init__(self, start_time=None, end_time=None, position=None, length=None):
         self.start_time = start_time
         self.end_time = end_time
         self.position = position
@@ -85,14 +86,14 @@ class Road:
         self.bend = bend
         self.obstacle = None
 
-    def has_obstacle(self, position, time_step):
-        return (
-            self.obstacle is not None
-            and self.obstacle.start_time <= time_step < self.obstacle.end_time
-            and self.obstacle.position <= position < (self.obstacle.position + self.obstacle.length)
-        )
 
-
+    def has_obstacle(self, time_step):
+        if self.obstacle.start_time <= time_step <= self.obstacle.end_time:
+            return self.obstacle is not None 
+        
+        else:
+            return self.obstacle is None
+        
     '''
     def bend(angle, entrance_length, exit_length):
         if self.bend = True:
@@ -119,6 +120,7 @@ class Simulation:
     def __init__(self, save = False, output_dir = None):
         self.Road = Road()
         self.Vehicle = Vehicle()
+        self.Obstacle = Obstacle()
         self.velocities = None
         self.positions = None
         self.data = []
@@ -133,14 +135,14 @@ class Simulation:
         if self.Road.density > 1.0:
             raise ValueError("Density cannot be greater than 1.0")
     
-        num_vehicles = int(self.Road.length * self.Road.density)
+        self.Road.number = int(self.Road.length * self.Road.density)
 
-        if num_vehicles > self.Road.length:
+        if self.Road.number > self.Road.length:
             raise ValueError("Density is too high relative to road length")
         
         else:
             #print(self.Road.length)
-            self.positions = random.choices(range(self.Road.length), k=num_vehicles)
+            self.positions = random.choices(range(self.Road.length), k= self.Road.number)
             self.positions.sort()
             self.velocities = [random.randint(1, self.Vehicle.max_velocity) for i in range(len(self.positions))]
             
@@ -152,10 +154,13 @@ class Simulation:
             #else:
                 #print("Vehicles initialised successfully... starting simulation.")
 
-        return num_vehicles
+        return self.positions, self.velocities
 
     def add_obstacle(self, start_time, end_time, position, length):
         self.Road.obstacle = Obstacle(start_time, end_time, position, length)
+
+        return self.Road.obstacle is not None
+
 
     def update(self, steps):
         if self.velocities is None or self.positions is None:
@@ -164,31 +169,38 @@ class Simulation:
             for step in range(steps):
                 new_velocities = []
                 new_positions = []
+                #if step >= 20 and step <= 40:
+                    #self.Vehicle.max_velocity = 5
 
                 for i in range(len(self.positions)):
+                    #print(self.positions[i])
                     velocity = self.velocities[i]
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
 
-                    if self.Road.has_obstacle(self.positions[i], step):
-                        #print("Obstacle detected at time:", step)
-                        distance = self.Road.obstacle.position - self.positions[i]
-
-                        if distance < velocity:
-                            print("Reducing velocity...")
-                            velocity = max(0, distance - 1)
+                    if self.Road.has_obstacle(step):
+                        if self.Road.obstacle.start_time <= step <= self.Road.obstacle.end_time:
+                            obstacle_range = range(self.Road.obstacle.position - self.Vehicle.max_velocity, self.Road.obstacle.position)
+                            print("Obstacle detected at time:", step)
+                            print(self.positions[i])
+                            
+                            if self.positions[i] in obstacle_range:
+                                print('slowing down')
+                                velocity = 0
 
                         else:
-                            print("No obstacle detected at time:", step, ', accelerating...')
+                            #print('Obstacle detected. Moving normally...', step)
                             velocity = min(velocity + 1, self.Vehicle.max_velocity)
                             velocity = min(velocity, max(headway - 1, 0))
 
                     else:
-                        print('moving normally...', step)
+                        #if self.Road.obstacle.start_time < step < self.Road.obstacle.end_time:
+                        print('No obstacle. moving normally...', step)
+
                         velocity = min(velocity + 1, self.Vehicle.max_velocity)
                         velocity = min(velocity, max(headway - 1, 0))
 
                     if velocity > 0 and random.random() < self.Vehicle.slow_prob:
-                        print('randomly slowing down at time', step)
+                        #print('randomly slowing down at time', step)
                         velocity = max(velocity - 1, 0)
 
                     new_velocities.append(velocity)
@@ -205,11 +217,6 @@ class Simulation:
 
         #print(np.shape(self.velocity_data))
         #print(np.shape(self.data))
-
-        for i in range(self.Road.number):
-            new_data_contour = [datas[i] for datas in self.data]
-            print("id", i, ":", new_data_contour)
-        
                           
         return self.data, self.velocity_data
 
@@ -246,23 +253,35 @@ class Simulation:
 
         return flow_rate
     
-    def flow_rate_loop(self, time_interval):
+    def flow_rate_loop(self, steps, interval= None):
         """
         flow rate loop counter
 
         Args:
-            time_interval (int): time step
+            steps (int): 
+                time step
+
+            interval (int), optional: 
+                time interval if you want to get the flow rate of a certain window.
 
         Returns:
-            flow_rate(float): flow rate at the end of the road
+            flow_rate(float): 
+                flow rate at the end of the road
         """
         num_passes = 0
-        print(self.Vehicle.max_velocity)
 
         for k in range(self.Road.number):
             positions = [entry[k] for entry in self.data]
+            #print(positions)
+            
+            if interval is not None:
+                positions = positions[steps - interval : steps]
+            #print(positions)
+            else:
+                positions = positions[:steps]
+
             previous_position = positions[-1]
-            #TODO: grab velocity of car that passes through flow points - add a way to collect avgerages at different times
+            #TODO: grab velocity of car that passes through flow points - add a way to collect averages at different times
             for position in positions:
                 if previous_position > position:
                     print('position = %d' % position)
@@ -281,27 +300,31 @@ class Simulation:
 
         print("Num Vehicles Passed: %d" % num_passes)
         
-        flow_rate = (num_passes / time_interval)
+        flow_rate = (num_passes / steps)
         print('Flow rate = %f' % flow_rate)
 
         return flow_rate
 
             
-    def plot_timespace(self, steps, plot=True, plot_obstacle = True, save=False, folder=None, number=None):
+    def plot_timespace(self, steps, plot_obstacle = True, save=False, folder=None, number=None):
         '''
             plots time space diagram using data from self.data
 
         Args:
-            steps (int): time step
-            plot (bool, optional): If True, shows plot of graph. Defaults to True.
-            save (bool, optional): If True, will save to file. Defaults to False.
-            folder (_type_, optional): Save location - required if save is True. Defaults to None.
-            number (_type_, optional): Used for keeping track of plots when iterating. Defaults to None.
+            steps (int): 
+                time step
+            plot (bool, optional): 
+                If True, shows plot of graph. Defaults to True.
+            save (bool, optional): 
+                If True, will save to file. Defaults to False.
+            folder (_type_, optional): 
+                Save location - required if save is True. Defaults to None.
+            number (_type_, optional): 
+                Used for keeping track of plots when iterating. Defaults to None.
         
         '''
         print('Simulation Complete. Plotting graph...')
         time_steps = range(steps)
-        print(type(time_steps))
 
         for i in range(self.Road.number):
             new_data = [item[i] for item in self.data]
@@ -337,7 +360,7 @@ class Simulation:
         else:
             plt.show()
 
-    def plot_contour(self, steps):
+    def plot_contour(self, steps, plot_obstacle = True, save = False, folder=None, number=None):
             time_steps = range(steps)
             time_steps_contour = np.array(time_steps)
 
@@ -363,6 +386,16 @@ class Simulation:
                             linewidth = 0,
                             edgecolors= None)
 
+                if self.Road.obstacle is not None and plot_obstacle == True:
+                    obstacle_range = np.arange(self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
+                    obstacle_time_range = np.arange(self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
+
+                    obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
+
+                    for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
+                        if obstacle_pos < len(new_data_contour) and obstacle_pos >= 0:
+                            plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
+
                 #plt.title('Scatter Plot')
                 #plt.xlabel('New Data')
                 #plt.ylabel('Time Steps')
@@ -374,7 +407,18 @@ class Simulation:
             plt.xlabel('Vehicle Position')
             plt.ylabel('Time')
             plt.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-            plt.show()
+            
+            if save:
+                self.output_dir = os.path.join(
+                    folder, f'Time Space Plot {number}.png')
+                fig = plt.gcf()
+                fig.set_size_inches(12, 12)
+                plt.savefig(self.output_dir, dpi=100)
+                plt.clf()
+
+            else:
+                plt.show()
+            
             
     def plot_velocity(self, steps, save=False, folder=None):
         time_steps = range(steps)
@@ -393,7 +437,29 @@ class Simulation:
             plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
             plt.show()
 
-            
+    def plot_speed_camera(self, steps, interval, plot_obstacle = True):
+        flows = []
+        for i in range(10 + interval, steps, interval):
+            print(i)
+            flow = self.flow_rate_loop(i, interval = interval)
+            flows.append(flow)
+
+        fig, ax = plt.subplots()
+        ax.plot(range(10 + interval, steps, interval), flows)
+
+        if self.Road.obstacle is not None and plot_obstacle == True:
+            rectangle = patches.Rectangle(
+                (self.Road.obstacle.start_time, 0),
+                self.Road.obstacle.end_time - self.Road.obstacle.start_time,
+                max(flows),
+                alpha=0.2,
+                color='red')
+            ax.add_patch(rectangle)
+
+        plt.xlabel("Time Step")
+        plt.ylabel("Flow Rate")
+        plt.show()
+
     def plot_density(self, steps, plot=True, isAvg = True, save = False, folder = None, number = None):
         densities = []
         flow_rate = []
@@ -446,20 +512,20 @@ class Simulation:
 debug = True
 
 if debug:
-    steps = 100
+    steps = 1000
     seeds = 100
     random.seed(seeds)
     sim = Simulation()
-    sim.Vehicle = Vehicle(max_velocity=10, slow_prob=0.1)
-    sim.Road = Road(length=100, density=10/100)
+    sim.Vehicle = Vehicle(max_velocity=20, slow_prob=0.1)
+    sim.Road = Road(length=1000, density=30/1000)
     sim.initialize()
-    sim.add_obstacle(start_time=10, end_time=20, position=5, length=1)
+    sim.add_obstacle(start_time=100, end_time=300, position=200, length=1)
     sim.update(steps)
-    #sim.flow_rate_loop(steps)
     sim.plot_timespace(steps, plot_obstacle= True)
     sim.plot_contour(steps)
     #sim.plot_velocity(steps)
     #sim.plot_density(steps)
+    sim.plot_speed_camera(steps, 5, True)
 
 
 
