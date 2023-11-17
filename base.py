@@ -180,11 +180,11 @@ class Simulation:
                     if self.Road.has_obstacle(step):
                         if self.Road.obstacle.start_time <= step <= self.Road.obstacle.end_time:
                             obstacle_range = range(self.Road.obstacle.position - self.Vehicle.max_velocity, self.Road.obstacle.position)
-                            print("Obstacle detected at time:", step)
+                            #print("Obstacle detected at time:", step)
                             print(self.positions[i])
                             
                             if self.positions[i] in obstacle_range:
-                                print('slowing down')
+                                print('slowing down at time:', step)
                                 velocity = 0
 
                         else:
@@ -194,7 +194,7 @@ class Simulation:
 
                     else:
                         #if self.Road.obstacle.start_time < step < self.Road.obstacle.end_time:
-                        print('No obstacle. moving normally...', step)
+                        #print('No obstacle. moving normally...', step)
 
                         velocity = min(velocity + 1, self.Vehicle.max_velocity)
                         velocity = min(velocity, max(headway - 1, 0))
@@ -328,18 +328,20 @@ class Simulation:
 
         for i in range(self.Road.number):
             new_data = [item[i] for item in self.data]
-
             plt.plot(new_data, time_steps, '.', markersize=0.5, color='grey')
 
-            if self.Road.obstacle is not None and plot_obstacle == True:
-                obstacle_range = np.arange(self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
-                obstacle_time_range = np.arange(self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
+        if self.Road.obstacle is not None and plot_obstacle == True:
+            print("plot obstacle")
+            obstacle_range = np.arange(self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
+            obstacle_time_range = np.arange(self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
+            print(obstacle_range)
+            print(obstacle_time_range)
+            obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
+            print(obstacle_positions)
 
-                obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
-
-                for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
-                    if obstacle_pos < len(new_data) and obstacle_pos >= 0:
-                        plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
+            for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
+                #if obstacle_pos < len(new_data) and obstacle_pos >= 0:
+                plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
 
         plt.gca().xaxis.set_ticks_position('top')
         plt.gca().xaxis.set_label_position('top')
@@ -347,6 +349,7 @@ class Simulation:
         plt.title('Time Space diagram')
         plt.xlabel('Vehicle Position')
         plt.ylabel('Time')
+        plt.xlim(0, self.Road.length)
         plt.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
 
         if save:
@@ -361,63 +364,63 @@ class Simulation:
             plt.show()
 
     def plot_contour(self, steps, plot_obstacle = True, save = False, folder=None, number=None):
-            time_steps = range(steps)
-            time_steps_contour = np.array(time_steps)
+        time_steps = range(steps)
+        time_steps_contour = np.array(time_steps)
 
-            for i in range(self.Road.number):
-                new_data_contour = [datas[i] for datas in self.data]
-                velocity_data_contour = [vels[i] for vels in self.velocity_data]
-                new_data_contour = np.array(new_data_contour)
-                velocity_data_contour = np.array(velocity_data_contour)
-                #print(velocity_data_contour)
-                #print(new_data_contour)
+        for i in range(self.Road.number):
+            new_data_contour = [datas[i] for datas in self.data]
+            velocity_data_contour = [vels[i] for vels in self.velocity_data]
+            new_data_contour = np.array(new_data_contour)
+            velocity_data_contour = np.array(velocity_data_contour)
+            #print(velocity_data_contour)
+            #print(new_data_contour)
+        
+            #print(np.shape(new_data_contour))
+            #print(np.shape(time_steps))
+            #print(np.shape(velocity_data_contour))
             
-                #print(np.shape(new_data_contour))
-                #print(np.shape(time_steps))
-                #print(np.shape(velocity_data_contour))
-                
-                plt.scatter(new_data_contour, 
-                            time_steps_contour, 
-                            c = velocity_data_contour, 
-                            marker = 'o', 
-                            cmap= cm.Greys, 
-                            alpha = .8,
-                            norm = Normalize(vmin=0, vmax=self.Vehicle.max_velocity),
-                            linewidth = 0,
-                            edgecolors= None)
+            plt.scatter(new_data_contour, 
+                        time_steps_contour, 
+                        c = velocity_data_contour, 
+                        marker = 'o', 
+                        cmap= cm.Greys, 
+                        alpha = .8,
+                        norm = Normalize(vmin=0, vmax=self.Vehicle.max_velocity),
+                        linewidth = 0,
+                        edgecolors= None)
 
-                if self.Road.obstacle is not None and plot_obstacle == True:
-                    obstacle_range = np.arange(self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
-                    obstacle_time_range = np.arange(self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
+            if self.Road.obstacle is not None and plot_obstacle == True:
+                obstacle_range = np.arange(self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
+                obstacle_time_range = np.arange(self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
 
-                    obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
+                obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
 
-                    for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
-                        if obstacle_pos < len(new_data_contour) and obstacle_pos >= 0:
-                            plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
+                for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
+                    plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
 
-                #plt.title('Scatter Plot')
-                #plt.xlabel('New Data')
-                #plt.ylabel('Time Steps')
-            plt.colorbar(label='Velocity')
-            plt.gca().xaxis.set_ticks_position('top')
-            plt.gca().xaxis.set_label_position('top')
-            plt.gca().invert_yaxis()
-            plt.title('Time Space diagram')
-            plt.xlabel('Vehicle Position')
-            plt.ylabel('Time')
-            plt.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-            
-            if save:
-                self.output_dir = os.path.join(
-                    folder, f'Time Space Plot {number}.png')
-                fig = plt.gcf()
-                fig.set_size_inches(12, 12)
-                plt.savefig(self.output_dir, dpi=100)
-                plt.clf()
+            #plt.title('Scatter Plot')
+            #plt.xlabel('New Data')
+            #plt.ylabel('Time Steps')
+        plt.colorbar(label='Velocity')
+        plt.gca().xaxis.set_ticks_position('top')
+        plt.gca().xaxis.set_label_position('top')
+        plt.gca().invert_yaxis()
+        plt.title('Time Space diagram')
+        plt.xlabel('Vehicle Position')
+        plt.ylabel('Time')
+        plt.xlim(0, self.Road.length)
+        plt.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
+        
+        if save:
+            self.output_dir = os.path.join(
+                folder, f'Time Space Plot {number}.png')
+            fig = plt.gcf()
+            fig.set_size_inches(12, 12)
+            plt.savefig(self.output_dir, dpi=100)
+            plt.clf()
 
-            else:
-                plt.show()
+        else:
+            plt.show()
             
             
     def plot_velocity(self, steps, save=False, folder=None):
@@ -512,17 +515,17 @@ class Simulation:
 debug = True
 
 if debug:
-    steps = 1000
-    seeds = 100
+    steps = 100
+    seeds = 1000
     random.seed(seeds)
     sim = Simulation()
-    sim.Vehicle = Vehicle(max_velocity=20, slow_prob=0.1)
-    sim.Road = Road(length=1000, density=30/1000)
+    sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.5)
+    sim.Road = Road(length=1000, density=300/1000)
     sim.initialize()
-    sim.add_obstacle(start_time=100, end_time=300, position=200, length=1)
+    sim.add_obstacle(start_time=10, end_time=30, position=200, length=1)
     sim.update(steps)
     sim.plot_timespace(steps, plot_obstacle= True)
-    sim.plot_contour(steps)
+    sim.plot_contour(steps, plot_obstacle= True)
     #sim.plot_velocity(steps)
     #sim.plot_density(steps)
     sim.plot_speed_camera(steps, 5, True)
