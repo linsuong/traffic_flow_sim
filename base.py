@@ -8,7 +8,8 @@ import os
 
 class Vehicle:
     def __init__ (self, length = 1, target_velocity = 4, max_velocity = 5, 
-                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.3, kindness = False, reckless = False):
+                    acceleration_time = 0.5, deceleration_time = 0.5, 
+                    slow_prob = 0.3, kindness = False, reckless = False):
         #self.id = id
         self.length = length
         self.velocity = []
@@ -21,6 +22,7 @@ class Vehicle:
         self.slow_prob = slow_prob
         self.kindness = kindness
         self.reckless = reckless
+        self.lane = None
 
     def acceleration(self):
         factor = (self.target_velocity - self.velocity)/self.acceleration_time
@@ -71,21 +73,22 @@ class Traffic_Light:
             pass
       
 class Obstacle:
-    def __init__(self, start_time=None, end_time=None, position=None, length=None):
+    def __init__(self, start_time=None, end_time=None, position=None, length=None, lane = None):
         self.start_time = start_time
         self.end_time = end_time
         self.position = position
         self.length = length
+        self.lane = lane
 
 class Road:
-    def __init__(self, length=100, density=1 / 100, speed_limit=2, bend=False):
+    def __init__(self, length=100, density=1 / 100, speed_limit=2, number_of_lanes = 1, bend=False):
         self.length = length
         self.density = density
         self.number = int(density * length)
         self.speed_limit = speed_limit
+        self.number_of_lanes = number_of_lanes
         self.bend = bend
         self.obstacle = None
-
 
     def has_obstacle(self, time_step):
         if self.obstacle.start_time <= time_step <= self.obstacle.end_time:
@@ -132,10 +135,15 @@ class Simulation:
                 os.makedirs(self.output_dir)
 
     def initialize(self):
+        self.positions = []
+        self.velocities = []
+        self.lanes = []
+
+        #for _ in range(self.Road.number_of_lanes):
         if self.Road.density > 1.0:
             raise ValueError("Density cannot be greater than 1.0")
     
-        self.Road.number = int(self.Road.length * self.Road.density)
+        self.Road.number = int(self.Road.length * self.Road.density * self.Road.number_of_lanes)
 
         if self.Road.number > self.Road.length:
             raise ValueError("Density is too high relative to road length")
@@ -143,21 +151,49 @@ class Simulation:
         else:
             #print(self.Road.length)
             self.positions = random.choices(range(self.Road.length), k= self.Road.number)
-            self.positions.sort()
+            self.lanes = random.choices(range(self.Road.number_of_lanes), k = self.Road.number)
             self.velocities = [random.randint(1, self.Vehicle.max_velocity) for i in range(len(self.positions))]
+
             
+
+
+            self.positions.sort()
             if np.shape(self.velocities) != np.shape(self.positions):
                 print("Number of cars: %s" %np.shape(self.positions))
                 print("Number of velocities: %s" %np.shape(self.velocities))
                 raise Exception("Error - not all cars have velocity, or too many velocities, not enough cars")
 
-            #else:
-                #print("Vehicles initialised successfully... starting simulation.")
+                #else:
+                    #print("Vehicles initialised successfully... starting simulation.")
 
-        return self.positions, self.velocities
+        the_road = np.zeros((self.Road.number_of_lanes, self.Road.length), dtype = int)
+            
+        for i in range(len(self.positions)):
+            the_road[self.lanes[i]][self.positions[i]] = self.velocities[i]
 
-    def add_obstacle(self, start_time, end_time, position, length):
-        self.Road.obstacle = Obstacle(start_time, end_time, position, length)
+
+        print(the_road)            
+
+        '''
+        if self.Road.number_of_lanes > 1:
+            lane_positions = [np.zeros((self.Road.number_of_lanes, len(self.positions)), dtype= int)]
+            lane_velocities = np.zeros((self.Road.number_of_lanes, len(self.positions)), dtype= int)
+            for i in range(len(self.positions)):
+                    lane_positions[self.lanes[i]][i] = self.positions[i]
+                    lane_velocities[self.lanes[i]][i] = self.velocities[i]
+        '''
+
+        #print(lane_positions)
+        #print(lane_velocities)
+        #self.positions = lane_positions
+        #self.velocities = lane_velocities 
+        print(self.positions)
+        print(self.velocities)    
+
+        return self.positions, self.velocities, self.lanes, the_road
+
+    def add_obstacle(self, start_time, end_time, position, length, lane):
+        self.Road.obstacle = Obstacle(start_time, end_time, position, length, lane)
 
         return self.Road.obstacle is not None
 
@@ -169,55 +205,48 @@ class Simulation:
             for step in range(steps):
                 new_velocities = []
                 new_positions = []
-                #if step >= 20 and step <= 40:
-                    #self.Vehicle.max_velocity = 5
 
                 for i in range(len(self.positions)):
-                    #print(self.positions[i])
-                    velocity = self.velocities[i]
-                    headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
+                    velocity = self.velocities[self.lanes[i]][i]
+                    headway = (self.positions[(i + 1) % len(self.positions[0])][i] - self.positions[self.lanes[i]][i] - 1) % self.Road.length
+
+                    '''lane switch:
+                    if random.random() < 0.1:  # 10% probability for lane switching
+                        new_lane = (self.lanes[i] + 1) % self.Road.number_of_lanes
+                        if self.positions[new_lane][i] == 0:  # Check if the new lane is free
+                            self.lanes[i] = new_lane
+                    '''
 
                     if self.Road.has_obstacle(step):
                         if self.Road.obstacle.start_time <= step <= self.Road.obstacle.end_time:
                             obstacle_range = range(self.Road.obstacle.position - self.Vehicle.max_velocity, self.Road.obstacle.position)
-                            #print("Obstacle detected at time:", step)
-                            print(self.positions[i])
-                            
-                            if self.positions[i] in obstacle_range:
-                                print('slowing down at time:', step)
-                                velocity = 0
 
+                            if self.positions[self.lanes[i]][i] in obstacle_range:
+                                velocity = 0
                         else:
-                            #print('Obstacle detected. Moving normally...', step)
                             velocity = min(velocity + 1, self.Vehicle.max_velocity)
                             velocity = min(velocity, max(headway - 1, 0))
-
                     else:
-                        #if self.Road.obstacle.start_time < step < self.Road.obstacle.end_time:
-                        #print('No obstacle. moving normally...', step)
-
                         velocity = min(velocity + 1, self.Vehicle.max_velocity)
                         velocity = min(velocity, max(headway - 1, 0))
 
                     if velocity > 0 and random.random() < self.Vehicle.slow_prob:
-                        #print('randomly slowing down at time', step)
                         velocity = max(velocity - 1, 0)
 
                     new_velocities.append(velocity)
 
-                    new_pos = (self.positions[i] + velocity) % self.Road.length
+                    new_pos = (self.positions[self.lanes[i]][i] + velocity) % self.Road.length
                     new_positions.append(new_pos)
 
-                self.velocity_data.append(new_velocities)
-                self.velocities = new_velocities
-                new_positions = [(pos + vel) %
-                                self.Road.length for pos, vel in zip(self.positions, new_velocities)]
-                self.positions = new_positions
-                self.data.append(new_positions[:])
+                for i in range(len(self.positions[0])):
+                    self.velocities[self.lanes[i]][i] = new_velocities[i]
+                    self.positions[self.lanes[i]][i] = new_positions[i]
 
-        #print(np.shape(self.velocity_data))
-        #print(np.shape(self.data))
-                          
+                self.velocity_data.append(new_velocities)
+                self.data.append([pos[i] for pos in self.positions])
+        
+        print(self.data)
+        print(self.velocity_data)
         return self.data, self.velocity_data
 
     def flow_rate_ref_point(self, time_interval, reference_point=0):
@@ -520,15 +549,15 @@ if debug:
     random.seed(seeds)
     sim = Simulation()
     sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.5)
-    sim.Road = Road(length=1000, density=300/1000)
+    sim.Road = Road(length=100, density=5/10, number_of_lanes= 2)
     sim.initialize()
-    sim.add_obstacle(start_time=10, end_time=30, position=200, length=1)
+    #sim.add_obstacle(start_time=10, end_time=30, position=200, length=1)
     sim.update(steps)
-    sim.plot_timespace(steps, plot_obstacle= True)
-    sim.plot_contour(steps, plot_obstacle= True)
+    #sim.plot_timespace(steps, plot_obstacle= True)
+    #sim.plot_contour(steps, plot_obstacle= True)
     #sim.plot_velocity(steps)
     #sim.plot_density(steps)
-    sim.plot_speed_camera(steps, 5, True)
+    #sim.plot_speed_camera(steps, 5, True)
 
 
 
