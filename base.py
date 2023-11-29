@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.patches as patches
 from matplotlib.colors import Normalize
 import random
 import os
@@ -170,25 +171,26 @@ class Simulation:
                     headway = (self.positions[(i + 1) % len(self.positions)] - self.positions[i] - 1) % self.Road.length
 
                     if self.Road.has_obstacle(self.positions[i], step):
-                        #print("Obstacle detected at time:", step)
-                        distance = self.Road.obstacle.position - self.positions[i]
+                        if self.Road.obstacle.start_time <= step <= self.Road.obstacle.end_time:
+                            print('obstacle at time', step)
+                            obstacle_range = range(self.Road.obstacle.position - self.Vehicle.max_velocity, self.Road.obstacle.position + 1)
 
-                        if distance < velocity:
-                            print("Reducing velocity...")
-                            velocity = max(0, distance - 1)
+                            if self.positions[i] in obstacle_range:
+                                #print("obstacle detected: obstacle range is = ", obstacle_range)
+                                velocity = 0
 
-                        else:
-                            print("No obstacle detected at time:", step, ', accelerating...')
-                            velocity = min(velocity + 1, self.Vehicle.max_velocity)
-                            velocity = min(velocity, max(headway - 1, 0))
+                            else:
+                                #print("No obstacle detected at time:", step, ', accelerating...')
+                                velocity = min(velocity + 1, self.Vehicle.max_velocity)
+                                velocity = min(velocity, max(headway - 1, 0))
 
                     else:
-                        print('moving normally...', step)
+                        #print('moving normally...', step)
                         velocity = min(velocity + 1, self.Vehicle.max_velocity)
                         velocity = min(velocity, max(headway - 1, 0))
 
                     if velocity > 0 and random.random() < self.Vehicle.slow_prob:
-                        print('randomly slowing down at time', step)
+                        #print('randomly slowing down at time', step)
                         velocity = max(velocity - 1, 0)
 
                     new_velocities.append(velocity)
@@ -210,8 +212,10 @@ class Simulation:
             new_data_contour = [datas[i] for datas in self.data]
             print("id", i, ":", new_data_contour)
         
-                          
-        return self.data, self.velocity_data
+        print(self.data)
+        print(self.velocity_data)
+
+        return self.data, self.velocity_data, new_data_contour
 
     def flow_rate_ref_point(self, time_interval, reference_point=0):
         num_vehicles_passed = 0
@@ -246,23 +250,35 @@ class Simulation:
 
         return flow_rate
     
-    def flow_rate_loop(self, time_interval):
+    def flow_rate_loop(self, steps, interval= None):
         """
         flow rate loop counter
 
         Args:
-            time_interval (int): time step
+            steps (int): 
+                time step
+
+            interval (int), optional: 
+                time interval if you want to get the flow rate of a certain window.
 
         Returns:
-            flow_rate(float): flow rate at the end of the road
+            flow_rate(float): 
+                flow rate at the end of the road
         """
         num_passes = 0
-        print(self.Vehicle.max_velocity)
 
         for k in range(self.Road.number):
             positions = [entry[k] for entry in self.data]
+            #print(positions)
+            
+            if interval is not None:
+                positions = positions[steps - interval : steps]
+            #print(positions)
+            else:
+                positions = positions[:steps]
+
             previous_position = positions[-1]
-            #TODO: grab velocity of car that passes through flow points - add a way to collect avgerages at different times
+
             for position in positions:
                 if previous_position > position:
                     print('position = %d' % position)
@@ -281,7 +297,7 @@ class Simulation:
 
         print("Num Vehicles Passed: %d" % num_passes)
         
-        flow_rate = (num_passes / time_interval)
+        flow_rate = (num_passes / steps)
         print('Flow rate = %f' % flow_rate)
 
         return flow_rate
@@ -315,8 +331,7 @@ class Simulation:
                 obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
 
                 for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
-                    if obstacle_pos < len(new_data) and obstacle_pos >= 0:
-                        plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
+                    plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
 
         plt.gca().xaxis.set_ticks_position('top')
         plt.gca().xaxis.set_label_position('top')
@@ -442,6 +457,66 @@ class Simulation:
 
                 else:
                     plt.show()
+
+    def plot_speed_camera(self, steps, interval, plot_obstacle = True):
+        flows = []
+        for i in range(10 + interval, steps, interval):
+            print(i)
+            flow = self.flow_rate_loop(i, interval = interval)
+            flows.append(flow)
+
+        fig, ax = plt.subplots()
+        ax.plot(range(10 + interval, steps, interval), flows)
+
+        if self.Road.obstacle is not None and plot_obstacle == True:
+            rectangle = patches.Rectangle(
+                (self.Road.obstacle.start_time, 0),
+                self.Road.obstacle.end_time - self.Road.obstacle.start_time,
+                max(flows),
+                alpha=0.2,
+                color='red')
+            ax.add_patch(rectangle)
+
+        plt.xlabel("Time Step")
+        plt.ylabel("Flow Rate")
+        plt.show()
+
+    def avg_velocity_plot(self, time_start, time_stop, position, position_range, plot_obstacle = True):
+        average_velocities = []
+        time_range = np.arange(time_start, time_stop)
+
+        for i in range(time_start, time_stop):
+            total_velocity = 0
+            num_car = 0
+            positions = self.data[i]
+            velocities = self.velocity_data[i]
+
+            for time in range(len(time_range)):
+                if position - position_range <= positions[time] <= position + position_range:
+                    # Accumulate the velocity and count the number of vehicles
+                    total_velocity += velocities[time]
+                    num_car += 1
+
+            average_velocity = total_velocity / num_car if num_car > 0 else 0
+            average_velocities.append(average_velocity)
+
+        fig, ax = plt.subplots()
+
+        plt.title("Average Velocity at position %s to %s" % (position - position_range, position + position_range))
+        if self.Road.obstacle is not None and plot_obstacle == True:
+            rectangle = patches.Rectangle(
+                (self.Road.obstacle.start_time, 0),
+                self.Road.obstacle.end_time - self.Road.obstacle.start_time,
+                max(average_velocities),
+                alpha=0.2,
+                color='red')
+            ax.add_patch(rectangle)
+
+        ax.plot(time_range, average_velocities, color="black")
+        ax.set_ylabel("Average Velocity")
+        ax.set_xlabel("Time")
+        plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
+        plt.show()
        
 debug = True
 
@@ -451,13 +526,15 @@ if debug:
     random.seed(seeds)
     sim = Simulation()
     sim.Vehicle = Vehicle(max_velocity=10, slow_prob=0.1)
-    sim.Road = Road(length=100, density=10/100)
+    sim.Road = Road(length=200, density=50/100)
     sim.initialize()
-    sim.add_obstacle(start_time=10, end_time=20, position=5, length=1)
+    sim.add_obstacle(start_time=20, end_time=50, position=100, length=1)
     sim.update(steps)
-    #sim.flow_rate_loop(steps)
     sim.plot_timespace(steps, plot_obstacle= True)
-    sim.plot_contour(steps)
+    sim.avg_velocity_plot(time_start = 0, time_stop = 100, position = 75, position_range = 25)
+    #sim.flow_rate_loop(steps)
+    
+    #sim.plot_contour(steps)
     #sim.plot_velocity(steps)
     #sim.plot_density(steps)
 
