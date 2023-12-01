@@ -349,9 +349,6 @@ class Simulation:
             plt.savefig(self.output_dir, dpi=100)
             plt.clf()
 
-        else:
-            plt.show()
-
     def plot_contour(self, steps):
             time_steps = range(steps)
             time_steps_contour = np.array(time_steps)
@@ -389,7 +386,7 @@ class Simulation:
             plt.xlabel('Vehicle Position')
             plt.ylabel('Time')
             plt.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-            plt.show()
+
             
     def plot_velocity(self, steps, save=False, folder=None):
         time_steps = range(steps)
@@ -406,7 +403,6 @@ class Simulation:
             plt.xlabel("Vehicle Velocity")
             plt.ylabel("Time")
             plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-            plt.show()
 
             
     def plot_density(self, steps, plot=True, isAvg = True, save = False, folder = None, number = None):
@@ -455,9 +451,6 @@ class Simulation:
                     plt.savefig(self.output_dir)
                     plt.clf()
 
-                else:
-                    plt.show()
-
     def plot_speed_camera(self, steps, interval, plot_obstacle = True):
         flows = []
         for i in range(10 + interval, steps, interval):
@@ -465,7 +458,7 @@ class Simulation:
             flow = self.flow_rate_loop(i, interval = interval)
             flows.append(flow)
 
-        fig, ax = plt.subplots()
+        fig0, ax = plt.subplots()
         ax.plot(range(10 + interval, steps, interval), flows)
 
         if self.Road.obstacle is not None and plot_obstacle == True:
@@ -479,7 +472,6 @@ class Simulation:
 
         plt.xlabel("Time Step")
         plt.ylabel("Flow Rate")
-        plt.show()
 
     def avg_velocity_plot(self, time_start, time_stop, position, position_range, plot_obstacle = True):
         average_velocities = []
@@ -499,8 +491,8 @@ class Simulation:
 
             average_velocity = total_velocity / num_car if num_car > 0 else 0
             average_velocities.append(average_velocity)
-
-        fig, ax = plt.subplots()
+        
+        fig1, ax = plt.subplots()
 
         plt.title("Average Velocity at position %s to %s" % (position - position_range, position + position_range))
         if self.Road.obstacle is not None and plot_obstacle == True:
@@ -515,9 +507,24 @@ class Simulation:
         ax.plot(time_range, average_velocities, color="black")
         ax.set_ylabel("Average Velocity")
         ax.set_xlabel("Time")
+        
         plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-        plt.show()
+
        
+    def multiplot(self, steps):
+        fig, axes = plt.subplots(1, 2)
+
+        # Plot 1: Time Space Diagram
+        axes[0].set_title('Time Space Diagram')
+        self.plot_timespace(steps, plot_obstacle=True, plot=False, save=False, folder=None, number=None)
+
+        # Plot 2: Average Velocity Plot
+        axes[1].set_title('Average Velocity')
+        self.avg_velocity_plot(time_start=0, time_stop=100, position=75, position_range=25, plot_obstacle=True)
+
+        plt.tight_layout()  # Adjust the layout to prevent overlap
+        plt.show()
+
 debug = True
 
 if debug:
@@ -532,8 +539,9 @@ if debug:
     sim.update(steps)
     sim.plot_timespace(steps, plot_obstacle= True)
     sim.avg_velocity_plot(time_start = 0, time_stop = 100, position = 75, position_range = 25)
-    #sim.flow_rate_loop(steps)
-    
+    sim.plot_combined(steps)
+    sim.flow_rate_loop(steps)
+    sim.plot_speed_camera(steps, 50, plot_obstacle = True)
     #sim.plot_contour(steps)
     #sim.plot_velocity(steps)
     #sim.plot_density(steps)
