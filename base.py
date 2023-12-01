@@ -37,21 +37,16 @@ class Vehicle:
             pass
 
     def lane_switch(self):
+        #for i in range(self.Road.lanes):
+            #if self.
         #TODO: make a lane switch fucntion that allows it to turn/switch lanes, lane switching also needs to check for headway
         # this can be implemented with a recklessness prbability maybe(?)
         pass
-    
-    def obstacle(self):
-        #TODO: collision function that simulates accident/obstacle that cars will lane switch to manouver around this obstacle
-        #obstacle present in a certain number of time steps, then after the time step is removed, how long will it take for the flow to be recovered?
-        pass
-
-
-    #TODO: capture speed at a certain point. there is a backward wave that makes cars move at a certain speed. can we label a car and measure it's velocity? 
-    # yes - there is VechicleID output, just add velocity output for the vehicle.
 
 class Traffic_Light:
-    def __init__ (self, color):
+    def __init__ (self, color, position):
+        self.color = color
+        self.position = position
         self.Vehicle = Vehicle()
         self.color = ['red', 'green'] 
 
@@ -71,28 +66,30 @@ class Traffic_Light:
             pass
       
 class Obstacle:
-    def __init__(self, start_time, end_time, position, length):
+    def __init__(self, start_time, end_time, position, length, lane):
         self.start_time = start_time
         self.end_time = end_time
         self.position = position
         self.length = length
+        self.lane = lane
 
 class Road:
-    def __init__(self, length=100, density=1 / 100, speed_limit=2, bend=False):
+    def __init__(self, length=100, density=1 / 100, speed_limit=2, number_of_lanes = 1, bend=False):
         self.length = length
         self.density = density
         self.number = int(density * length)
         self.speed_limit = speed_limit
+        self.number_of_lanes = number_of_lanes
         self.bend = bend
         self.obstacle = None
 
-    def has_obstacle(self, position, time_step):
+    def has_obstacle(self, position, time_step, lane):
         return (
             self.obstacle is not None
             and self.obstacle.start_time <= time_step < self.obstacle.end_time
             and self.obstacle.position <= position < (self.obstacle.position + self.obstacle.length)
+            #TODO: add something for lanes
         )
-
 
     '''
     def bend(angle, entrance_length, exit_length):
@@ -102,7 +99,6 @@ class Road:
             #TODO: Add "bend" fucntion to Road class to simulate bends
 
     '''
-
 class Network: 
     #TODO: add connection function that joins roads together to form a network.
     def __init__(self) -> None:
@@ -129,31 +125,95 @@ class Simulation:
         if save:
             if not os.path.exists(self.output_dir):
                 os.makedirs(self.output_dir)
-
+    '''
     def initialize(self):
+        self.positions = []
+        self.velocities = []
+        self.lanes = []
+
+        #for _ in range(self.Road.number_of_lanes):
         if self.Road.density > 1.0:
             raise ValueError("Density cannot be greater than 1.0")
     
-        num_vehicles = int(self.Road.length * self.Road.density)
+        self.Road.number = int(self.Road.length * self.Road.density * self.Road.number_of_lanes)
 
-        if num_vehicles > self.Road.length:
+        if self.Road.number > self.Road.length:
             raise ValueError("Density is too high relative to road length")
         
         else:
             #print(self.Road.length)
-            self.positions = random.choices(range(self.Road.length), k=num_vehicles)
-            self.positions.sort()
+            self.positions = random.choices(range(self.Road.length), k= self.Road.number)
+            self.lanes = random.choices(range(self.Road.number_of_lanes), k = self.Road.number)
             self.velocities = [random.randint(1, self.Vehicle.max_velocity) for i in range(len(self.positions))]
-            
+          
+            self.positions.sort()
             if np.shape(self.velocities) != np.shape(self.positions):
                 print("Number of cars: %s" %np.shape(self.positions))
                 print("Number of velocities: %s" %np.shape(self.velocities))
                 raise Exception("Error - not all cars have velocity, or too many velocities, not enough cars")
 
-            #else:
-                #print("Vehicles initialised successfully... starting simulation.")
+                #else:
+                    #print("Vehicles initialised successfully... starting simulation.")
 
-        return num_vehicles
+        the_road = np.zeros((self.Road.number_of_lanes, self.Road.length), dtype = int)
+            
+        for i in range(len(self.positions)):
+            the_road[self.lanes[i]][self.positions[i]] = self.velocities[i]
+
+        print("the road:")
+        print(the_road)            
+
+        
+        if self.Road.number_of_lanes > 1:
+            lane_positions = [np.zeros((self.Road.number_of_lanes, len(self.positions)), dtype= int)]
+            lane_velocities = np.zeros((self.Road.number_of_lanes, len(self.positions)), dtype= int)
+            for i in range(len(self.positions)):
+                    lane_positions[self.lanes[i]][i] = self.positions[i]
+                    lane_velocities[self.lanes[i]][i] = self.velocities[i]
+        
+        #print(lane_positions)
+        #print(lane_velocities)
+        #self.positions = lane_positions
+        #self.velocities = lane_velocities 
+        print("lanes:", self.lanes)
+        print("positions:", self.positions)
+        print("velocities:", self.velocities)    
+
+        return self.positions, self.velocities, self.lanes, the_road
+    '''
+
+    def initialize(self):
+        self.positions = []
+        self.velocities = []
+        self.lanes = []
+        self.road_matrix = np.zeros((self.Road.number_of_lanes, self.Road.length), dtype=int)
+
+        if self.Road.density > 1.0:
+            raise ValueError("Density cannot be greater than 1.0")
+
+        self.Road.number = int(self.Road.length * self.Road.density)
+
+        if self.Road.number > self.Road.length:
+            raise ValueError("Density is too high relative to road length")
+
+        else:
+            for _ in range(self.Road.number):
+                lane = random.randint(0, self.Road.number_of_lanes - 1)
+                position = random.randint(0, self.Road.length - 1)
+                velocity = random.randint(1, self.Vehicle.max_velocity)
+
+                self.positions.append(position)
+                self.lanes.append(lane)
+                self.velocities.append(velocity)
+                self.road_matrix[lane, position] = velocity
+
+        print("the road:")
+        print(self.road_matrix)
+        print("lanes:", self.lanes)
+        print("positions:", self.positions)
+        print("velocities:", self.velocities)    
+
+        return self.positions, self.velocities, self.lanes, self.road_matrix
 
     def add_obstacle(self, start_time, end_time, position, length):
         self.Road.obstacle = Obstacle(start_time, end_time, position, length)
@@ -521,19 +581,18 @@ class Simulation:
 debug = True
 
 if debug:
-    steps = 100
+    steps = 20
     seeds = 100
     random.seed(seeds)
     sim = Simulation()
-    sim.Vehicle = Vehicle(max_velocity=10, slow_prob=0.1)
-    sim.Road = Road(length=200, density=50/100)
+    sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.1)
+    sim.Road = Road(length=10, density=50/100, number_of_lanes = 2)
     sim.initialize()
-    sim.add_obstacle(start_time=20, end_time=50, position=100, length=1)
-    sim.update(steps)
-    sim.plot_timespace(steps, plot_obstacle= True)
-    sim.avg_velocity_plot(time_start = 0, time_stop = 100, position = 75, position_range = 25)
+    #sim.add_obstacle(start_time=20, end_time=50, position=100, length=1)
+    #sim.update(steps)
+    #sim.plot_timespace(steps, plot_obstacle= True)
+    #sim.avg_velocity_plot(time_start = 0, time_stop = 100, position = 75, position_range = 25)
     #sim.flow_rate_loop(steps)
-    
     #sim.plot_contour(steps)
     #sim.plot_velocity(steps)
     #sim.plot_density(steps)
