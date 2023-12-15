@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.patches as patches
 import copy
-from matplotlib.colors import Normalize
-from bisect import bisect_left
 import random
 import os
+import matplotlib.gridspec as gridspec
+from matplotlib.colors import Normalize
+from bisect import bisect_left
 
 class Vehicle:
     def __init__ (self, length = 1, target_velocity = 4, max_velocity = 5, 
@@ -90,7 +91,7 @@ class Road:
         return (
             self.obstacle is not None
             and self.obstacle.start_time <= time_step < self.obstacle.end_time
-            and lane in self.obstacle.lanes
+            and lane == self.obstacle.lane
             and self.obstacle.position <= position < (self.obstacle.position + self.obstacle.length)
             #TODO: add something for lanes
         )
@@ -154,13 +155,13 @@ class Simulation:
                 self.positions_by_lane[i] = position
                 self.velocities_by_lane[i] = velocity
 
-            print("positions:", self.positions_by_lane)
-            print("velocities:", self.velocities_by_lane)    
+            #print("positions:", self.positions_by_lane)
+            #print("velocities:", self.velocities_by_lane)    
 
         return self.positions_by_lane, self.velocities_by_lane
 
     def add_obstacle(self, start_time, end_time, position, length, lane):
-        self.Road.obstacle = Obstacle(start_time, end_time, position, length, lane)
+        self.Road.obstacle = Obstacle(start_time, end_time, position, length, lane - 1)
 
     def update(self, steps, flow_rate_interval = None):
         self.lane_swap = None
@@ -172,7 +173,7 @@ class Simulation:
         
         else:
             for step in range(steps):
-                print('time', step)
+                #print('time', step)
                 positions_after_lane_swap = [[] for _ in range(self.Road.number_of_lanes)]
                 velocities_after_lane_swap = [[] for _ in range(self.Road.number_of_lanes)]
                 positions_after_moving = [[] for _ in range(self.Road.number_of_lanes)]
@@ -180,24 +181,33 @@ class Simulation:
 
                 if self.Road.number_of_lanes != 1:
                     for lane_number in range(self.Road.number_of_lanes):
+                        print('lane swapping, t =', step, 'current lane =', lane_number)
                         current_lane_velocities = self.velocities_by_lane[lane_number]
                         current_lane_positions = self.positions_by_lane[lane_number]
 
-                        if lane_number + 1 == self.Road.number_of_lanes:
-                            next_lane_number = (lane_number - 1)
-
-                        elif lane_number - 1 == 0:
-                            next_lane_number = (lane_number + 1)
-                        
-                        else:
-                            print('lane 2, initiating randomisation of lane')
-                            if random.random() < 0.5:
-                                next_lane_number = (lane_number + 1)
+                        if self.Road.number_of_lanes == 2:
+                            if lane_number == 0:
+                                next_lane_number = 1
 
                             else:
+                                next_lane_number = 0
+
+                        else:
+                            if lane_number + 1 == self.Road.number_of_lanes:
                                 next_lane_number = (lane_number - 1)
 
-                        next_lane_positions = self.positions_by_lane[next_lane_number]
+                            elif lane_number == 0:
+                                next_lane_number = (lane_number + 1)
+                            
+                            else:
+                                #print('middle lane')
+                                if len(current_lane_positions) > len(self.positions_by_lane[lane_number - 1]):
+                                    next_lane_number = (lane_number + 1)
+
+                                else:
+                                    next_lane_number = (lane_number - 1)
+
+                        next_lane_positions = self.positions_by_lane[next_lane_number]  
                         next_lane_velocities = self.velocities_by_lane[next_lane_number]
 
                         # Loop through a copy of positions in the current lane
@@ -205,29 +215,41 @@ class Simulation:
                         moved_cars_indices = []
                         for i in reversed(range(len(list(current_lane_positions)))):
                             if i not in moved_cars_indices:
-                                position, velocity = current_lane_positions[i], current_lane_velocities[i]
-                                next_index = (i + 1) % len(current_lane_positions)
-                                prev_index = (i + 1) % len(current_lane_positions)
+                                if random.random() < 0.4:
+                                    position, velocity = current_lane_positions[i], current_lane_velocities[i]
+                                    next_index = (i + 1) % len(current_lane_positions)
+                                    prev_index = (i + 1) % len(current_lane_positions)
 
-                                # Check if there is enough space 
-                                empty_space_required_forward = next_lane_velocities[next_index % len(next_lane_velocities)] + 1
-                                empty_space_required_backward = next_lane_velocities[prev_index % len(next_lane_positions)] + 1
+                                    # Check if there is enough space 
+                                    if next_lane_positions:
+                                        empty_space_required_forward = next_lane_velocities[next_index % len(next_lane_velocities)] + 1
+                                        empty_space_required_backward = next_lane_velocities[prev_index % len(next_lane_positions)] + 1
 
-                                empty_positions_ahead = set((position + offset) % self.Road.length for offset in range(0, empty_space_required_forward + 1))
-                                empty_positions_behind = set((position - offset) % self.Road.length for offset in range(0, empty_space_required_backward + 1))
+                                        empty_positions_ahead = set((position + offset) % self.Road.length for offset in range(0, empty_space_required_forward + 1))
+                                        empty_positions_behind = set((position - offset) % self.Road.length for offset in range(0, empty_space_required_backward + 1))
 
-                                if not any(pos in next_lane_positions for pos in empty_positions_ahead) and not any(pos in next_lane_positions for pos in empty_positions_behind):
-                                    print('removing car in position', position, 'in lane', lane_number + 1, 'moving to position', position, 'in lane', next_lane_number + 1)
-                                    insert_index = bisect_left(next_lane_positions, position)
-                                    next_lane_positions.insert(insert_index, position)
-                                    next_lane_velocities.insert(insert_index, velocity)
+                                        if not any(pos in next_lane_positions for pos in empty_positions_ahead) and not any(pos in next_lane_positions for pos in empty_positions_behind):
+                                            #print('removing car in position', position, 'in lane', lane_number + 1, 'moving to position', position, 'in lane', next_lane_number + 1)
+                                            insert_index = bisect_left(next_lane_positions, position)
+                                            next_lane_positions.insert(insert_index, position)
+                                            next_lane_velocities.insert(insert_index, velocity)
 
-                                    moved_cars_indices.append(i)
-                                    indices_to_remove.append(i)
+                                            moved_cars_indices.append(i)
+                                            indices_to_remove.append(i)
+                                    
+                                    else:
+                                        #print('removing car in position', position, 'in lane', lane_number + 1, 'moving to position', position, 'in lane', next_lane_number + 1)
+                                        insert_index = bisect_left(next_lane_positions, position)
+                                        next_lane_positions.insert(insert_index, position)
+                                        next_lane_velocities.insert(insert_index, velocity)
+
+                                        moved_cars_indices.append(i)
+                                        indices_to_remove.append(i)
+
                         
                         #if self.lane_swap == True:
                         for index in indices_to_remove:
-                            print('removing index', index)
+                            #print('removing index', index)
                             current_lane_positions.pop(index)
                             current_lane_velocities.pop(index)
 
@@ -236,24 +258,37 @@ class Simulation:
 
                     self.positions_by_lane = positions_after_lane_swap
                     self.velocities_by_lane = velocities_after_lane_swap
-                    print('after swap', positions_after_lane_swap, velocities_after_lane_swap)
+                    #print('after swap', positions_after_lane_swap, velocities_after_lane_swap)
 
                 for lane_number in range(self.Road.number_of_lanes):
+                    print('lane moving, t =', step, 'current lane =', lane_number)
                     for i in range(len(self.velocities_by_lane[lane_number])):
+                        position = self.positions_by_lane[lane_number][i]
                         velocity = self.velocities_by_lane[lane_number][i]
                         headway = (self.positions_by_lane[lane_number][(i + 1) % len(self.positions_by_lane[lane_number])] - self.positions_by_lane[lane_number][i]) % self.Road.length
+                        
+                        if self.Road.has_obstacle(step, position, lane = lane_number):
+                            if self.Road.obstacle.start_time <= step <= self.Road.obstacle.end_time:
+                                obstacle_range = range(self.Road.obstacle.position - self.Vehicle.max_velocity, self.Road.obstacle.position)
 
-                        #print('moving normally...', step)
-                        velocity = min(velocity + 1, self.Vehicle.max_velocity)
-                        velocity = min(velocity, max(headway - 1, 0))
+                                if position in obstacle_range:
+                                    velocity = 0
+
+                                else:
+                                    velocity = min(velocity + 1, self.Vehicle.max_velocity)
+                                    velocity = min(velocity, max(headway - 1, 0))
+
+                        else:
+                            velocity = min(velocity + 1, self.Vehicle.max_velocity)
+                            velocity = min(velocity, max(headway - 1, 0))
 
                         if velocity > 0 and random.random() < self.Vehicle.slow_prob:
                             #print('randomly slowing down at time', step)
                             velocity = max(velocity - 1, 0)
 
-                        new_pos = (self.positions_by_lane[lane_number][i] + velocity) % self.Road.length
+                        new_pos = (position + velocity) % self.Road.length
 
-                        if new_pos < self.positions_by_lane[lane_number][i]:
+                        if new_pos < position:
                             #print('last position = ', self.positions_by_lane[lane_number][i], 'new position = ', new_pos)
                             self.passes_per_lane[lane_number] = self.passes_per_lane[lane_number] + 1
 
@@ -266,7 +301,7 @@ class Simulation:
                 self.data.append(positions_after_moving[:])
                 self.velocity_data.append(velocities_after_moving[:])
 
-                print('after move', self.positions_by_lane, self.velocities_by_lane)
+                #print('after move', self.positions_by_lane, self.velocities_by_lane)
         
         print(self.passes_per_lane)
         '''
@@ -301,97 +336,16 @@ class Simulation:
         self.total_flow_rate = sum(self.passes_per_lane)/steps
 
         return self.total_flow_rate
+    
+    def flow_rate_average(self, steps):
+        rates = []
+        for i in range(self.Road.number_of_lanes):
+            rates.append(self.passes_per_lane[i]/steps)
 
-    '''
-    def flow_rate_ref_point(self, time_interval, reference_point=0):
-            num_vehicles_passed = 0
-            total_loops = 0
-
-            for k in range(self.Road.number):
-                positions = [entry[k] for entry in self.data]
-                previous_position = positions[0]
-                loops = 0
-
-                for i in range(len(positions)):
-                    next_position = positions[(i + 1) % len(positions)]
-
-                    if previous_position > next_position:
-                        loops += 1
-
-                    if (next_position >= reference_point and positions[i] <= reference_point) or (next_position <= reference_point and positions[i] >= reference_point):
-                        num_vehicles_passed += loops
-
-                    previous_position = positions[i]
-
-                total_loops += loops
-
-            # Calculate the total number of loops
-            total_loops += (num_vehicles_passed / len(self.data))
-
-            #print("Total Loops: %f" % total_loops)
-            #print("Num Vehicles Passed: %d" % num_vehicles_passed)
-            
-            flow_rate = (num_vehicles_passed / len(self.data)) * (1 / time_interval)
-            #print('Flow rate = %f' % flow_rate)
-
-            return flow_rate
-
-    '''
+        self.average_flow_rate = sum(rates)/self.Road.number_of_lanes
         
-    def flow_rate_loop(self, steps, lane = None, interval= None):
-        """
-        flow rate loop counter
-
-        Args:
-            steps (int): 
-                time step
-
-            interval (int), optional: 
-                time interval if you want to get the flow rate of a certain window.
-
-        Returns:
-            flow_rate(float): 
-                flow rate at the end of the road
-        """
-        num_passes = 0
-        lane_data = self.data[lane - 1]
-
-        for k in range(self.Road.number):
-            positions = [entry[k] for entry in lane_data]
-            #print(positions)
-            
-            if interval is not None:
-                positions = positions[steps - interval : steps]
-            #print(positions)
-            else:
-                positions = positions[:steps]
-
-            previous_position = positions[-1]
-
-            for position in positions:
-                if previous_position > position:
-                    print('position = %d' % position)
-                    print('previous position = %d' % previous_position)
-                    print(self.Road.length - self.Vehicle.max_velocity + 1)
-                    print(self.Vehicle.max_velocity)
-
-                    if position < self.Vehicle.max_velocity + 1 and previous_position > self.Road.length - self.Vehicle.max_velocity - 1:
-                        print("yes")
-                        num_passes += 1
-
-                    else:
-                        print("no")
-
-                previous_position = position
-
-        print("Num Vehicles Passed: %d" % num_passes)
-        
-        flow_rate = (num_passes / steps)
-        print('Flow rate = %f' % flow_rate)
-
-        return flow_rate
-
-            
+        return self.average_flow_rate
+                   
     def plot_timespace(self, steps, lane=None, plot=True, plot_obstacle=True, save=False, folder=None, number=None, ax=None):
         '''
             plots time space diagram using data from self.data
@@ -418,7 +372,6 @@ class Simulation:
             else:
                 plt.plot(new_data, [i] * len(new_data), '.', markersize=0.5, color='grey')
 
-            '''
             if self.Road.obstacle is not None and plot_obstacle == True:
                 obstacle_range = np.arange(self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
                 obstacle_time_range = np.arange(self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
@@ -426,9 +379,8 @@ class Simulation:
                 obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
 
                 for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
-                    plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
-
-            '''
+                    if self.Road.obstacle.lane == lane + 1:
+                        plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
 
         if ax is not None:
             ax.xaxis.set_ticks_position('top')
@@ -518,52 +470,74 @@ class Simulation:
             plt.show()
 
             
-    def plot_density(self, steps, number_of_lanes, plot=True, isAvg=True, save=False, 
+    def plot_density(self, steps, length, max_velocity, slow_prob,
+                     number_of_lanes, plot=True, isAvg=True, save=False, 
                      folder=None, number=None, plot_lanes=False, ax=None):
         # TODO: Multi-lane implementation.
 
         densities = []
         flow_rate = []
-        flow_rates = [[] for _ in range(self.Road.number_of_lanes)]
+        flow_rates = [[] for _ in range(number_of_lanes)]
+        print('flow', flow_rates)
         flow_rate_avgs = []
 
         if plot:
             if isAvg:
-                for i in range(10, 250):
-                    p = 0.004 * i
+                for i in range(10, 180):
+                    p = 0.005 * i
                     print('density: %f' % p)
                     densities.append(p)
                     sim = Simulation()
-                    sim.Road = Road(density=p, number_of_lanes=number_of_lanes)
+                    sim.Vehicle = Vehicle(max_velocity, slow_prob)
+                    sim.Road = Road(length, density=p, number_of_lanes = number_of_lanes)
                     sim.initialize()
                     sim.update(steps)
 
                     if plot_lanes == False:
-                        flow_rate.append(sim.total_flow_rate(steps))
+                        flow_rate.append(sim.flow_rate_average(steps))
+
                     else:
-                        for j in range(self.Road.number_of_lanes):
-                            flow_rates[j] = sim.flow_rate_by_lane(steps, j)
+                        for j in range(number_of_lanes):
+                            flow_rates[j].append(sim.flow_rate_by_lane(steps, j))
+                            print(flow_rates)
 
-                if plot_lanes == False:
-                    ax.plot(densities, flow_rate, linestyle='-', label=f'{number_of_lanes} lanes', ax=ax)
+                if ax is not None:
+                    if plot_lanes == False:
+                        ax.plot(densities, flow_rate, linestyle='-', label= f'{number_of_lanes} lanes')
+
+                    else:
+                        for k in range(number_of_lanes):
+                            ax.plot(densities, flow_rates[k], linestyle='-', label= f'lane {k + 1}')
+
+                    ax.set_title(f'Average Flow Density Relationship - Number of lanes: {number_of_lanes}')
+                    ax.set_xlabel("Density")
+                    ax.set_ylabel("Flow rate")
+                    ax.legend()
+                    #ax.figtext(0.1, 0.005, f'Max velocity = {self.Vehicle.max_velocity}, Slow Prob = {self.Vehicle.slow_prob}', fontsize=9,
+                            #color='black')
+                    
                 else:
-                    for k in range(self.Road.number_of_lanes):
-                        ax.plot(densities, flow_rates[k], linestyle='-', label=f'Lane {k + 1}', ax=ax)
+                    if plot_lanes == False:
+                        plt.plot(densities, flow_rate, linestyle='-', label=f'{number_of_lanes} lanes')
+                
+                    else:
+                        for k in range(number_of_lanes):
+                            plt.plot(densities, flow_rates[k], linestyle='.', label=f'Lane {k + 1}')
 
-                ax.set_title(f'Average Flow Density Relationship - Number of lanes: {self.Road.number_of_lanes}')
-                ax.set_xlabel("Density")
-                ax.set_ylabel("Flow rate")
-                ax.legend()
-                ax.figtext(0.1, 0.005, f'Max velocity = {self.Vehicle.max_velocity}, Slow Prob = {self.Vehicle.slow_prob}', fontsize=9,
-                        color='black')
+                    plt.title(f'Average Flow Density Relationship - Number of lanes: {number_of_lanes}')
+                    plt.xlabel("Density")
+                    plt.ylabel("Flow rate")
+                    plt.legend()
+                    plt.figtext(0.1, 0.005, f'Max velocity = {max_velocity}, Slow Prob = {slow_prob}', fontsize=9,
+                            color='black')
+                
+                    if save:
+                        self.output_dir = os.path.join(folder, f'Flow Density {number}.png')
+                        ax.savefig(self.output_dir)
+                        plt.clf()
 
-                if save:
-                    self.output_dir = os.path.join(folder, f'Flow Density {number}.png')
-                    ax.savefig(self.output_dir)
-                    plt.clf()
-
-                else:
-                    plt.show()
+                    else: 
+                        plt.show()
 
     def plot_speed_camera(self, steps, interval, plot_obstacle = True):
         flows = []
@@ -624,9 +598,34 @@ class Simulation:
         ax.set_xlabel("Time")
         plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
         plt.show()
-       
-fig, ax = plt.subplots(3, 3, figsize=(30, 30))
-fig1, ax1 = plt.subplots(1, 1, figsize=(30,30))  # Rename ax1 to avoid conflict
+
+'''
+steps = 100
+seeds = 100
+
+random.seed(seeds)
+sim = Simulation()
+#sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.2)
+#sim.Road = Road(length=1000, density = 0.44, number_of_lanes = 2)
+#sim.plot_timespace
+#sim.initialize()
+#sim.update(steps)
+
+fig1, ax1 = plt.subplots()
+sim.plot_density(steps, length = 100, max_velocity = 5, slow_prob = 0.2, plot_lanes = False, number_of_lanes=1, ax = ax1)
+sim.plot_density(steps, length = 100, max_velocity = 5, slow_prob = 0.2, plot_lanes = False, number_of_lanes=2, ax = ax1)
+sim.plot_density(steps, length = 100, max_velocity = 5, slow_prob = 0.2, plot_lanes = False, number_of_lanes=3, ax = ax1)
+sim.plot_density(steps, length = 100, max_velocity = 5, slow_prob = 0.2, plot_lanes = False, number_of_lanes=4, ax = ax1)
+
+plt.show()
+
+#sim.plot_timespace(steps, lane = 1)
+#sim.plot_timespace(steps, lane = 2)
+
+
+
+fig, ax = plt.subplots(4, 4, figsize=(30, 30))
+#fig1, ax1 = plt.subplots(1, 1, figsize=(30,30)) 
 
 steps = 100
 seeds = 100
@@ -636,8 +635,8 @@ sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.2)
 sim.Road = Road(length=1000, density=20/100, number_of_lanes=1)
 sim.initialize()
 sim.update(steps)
-sim.plot_timespace(steps, lane=1, ax=ax[0, 1])
-sim.flow_rate(steps, number_of_lanes=1, ax=ax1)  # Use ax1 directly
+sim.plot_timespace(steps, lane=1, ax=ax[0, 0])
+#sim.plot_density(steps, number_of_lanes=1, ax = ax1)
 
 steps = 100
 seeds = 100
@@ -648,8 +647,8 @@ sim.Road = Road(length=1000, density=20/100, number_of_lanes=2)
 sim.initialize()
 sim.update(steps)
 sim.plot_timespace(steps, lane=1, ax=ax[1, 0])
-sim.plot_timespace(steps, lane=2, ax=ax[1, 2])
-sim.flow_rate(steps, number_of_lanes=2, ax=ax1)  # Use ax1 directly
+sim.plot_timespace(steps, lane=2, ax=ax[1, 1])
+#sim.plot_density(steps, number_of_lanes=2, ax=ax1)
 
 sim = Simulation()
 sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.2)
@@ -659,21 +658,48 @@ sim.update(steps)
 sim.plot_timespace(steps, lane=1, ax=ax[2, 0])
 sim.plot_timespace(steps, lane=2, ax=ax[2, 1])
 sim.plot_timespace(steps, lane=3, ax=ax[2, 2])
-sim.flow_rate(steps, number_of_lanes=3, ax=ax1)  # Use ax1 directly
+#sim.plot_density(steps, number_of_lanes=3, ax=ax1)
 
-fig.delaxes(ax[0, 0])
+sim = Simulation()
+sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.2)
+sim.Road = Road(length=1000, density=20/100, number_of_lanes=4)
+sim.initialize()
+sim.update(steps)
+sim.plot_timespace(steps, lane=1, ax=ax[3, 0])
+sim.plot_timespace(steps, lane=2, ax=ax[3, 1])
+sim.plot_timespace(steps, lane=3, ax=ax[3, 2])
+sim.plot_timespace(steps, lane=4, ax=ax[3, 3])
+
+fig.delaxes(ax[0, 1])
 fig.delaxes(ax[0, 2])
-fig.delaxes(ax[1, 1])
+fig.delaxes(ax[0, 3])
+fig.delaxes(ax[1, 2])
+fig.delaxes(ax[1, 3])
+fig.delaxes(ax[2, 3])
 
 plt.tight_layout()
 plt.show()
-
 
 #sim.avg_velocity_plot(time_start = 0, time_stop = 100, position = 75, position_range = 25)
 #sim.flow_rate_loop(steps)
 #sim.plot_contour(steps)
 #sim.plot_velocity(steps)
 #sim.plot_density(steps)
+'''
 
+steps = 100
+seeds = 100
+random.seed(seeds)
+sim = Simulation()
+sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.2)
+sim.Road = Road(length=1000, density=20/100, number_of_lanes=2)
+sim.initialize()
+sim.add_obstacle(20, 30, 30, 1, lane = 1)
+sim.update(steps)
+sim.plot_timespace(steps, lane=1, plot_obstacle= True)
+sim.plot_timespace(steps, lane=2, plot_obstacle= True)
+
+plt.show()
+#sim.plot_density(steps, number_of_lanes=2, ax=ax1)
 
 
