@@ -474,7 +474,7 @@ class Simulation:
             plt.xlabel('Vehicle Position')
             plt.ylabel('Time')
             plt.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-            plt.show()
+
             
     def plot_velocity(self, steps, save=False, folder=None):
         time_steps = range(steps)
@@ -491,7 +491,6 @@ class Simulation:
             plt.xlabel("Vehicle Velocity")
             plt.ylabel("Time")
             plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-            plt.show()
 
             
     def plot_density(self, steps, length, max_velocity, slow_prob,
@@ -563,6 +562,7 @@ class Simulation:
                     else: 
                         plt.show()
 
+
     def plot_speed_camera(self, steps, interval, plot_obstacle = True):
         flows = []
         for i in range(10 + interval, steps, interval):
@@ -570,7 +570,7 @@ class Simulation:
             flow = self.flow_rate_loop(i, interval = interval)
             flows.append(flow)
 
-        fig, ax = plt.subplots()
+        fig0, ax = plt.subplots()
         ax.plot(range(10 + interval, steps, interval), flows)
 
         if self.Road.obstacle is not None and plot_obstacle == True:
@@ -584,7 +584,6 @@ class Simulation:
 
         plt.xlabel("Time Step")
         plt.ylabel("Flow Rate")
-        plt.show()
 
     def avg_velocity_plot(self, time_start, time_stop, position, position_range, plot_obstacle = True):
         average_velocities = []
@@ -604,8 +603,8 @@ class Simulation:
 
             average_velocity = total_velocity / num_car if num_car > 0 else 0
             average_velocities.append(average_velocity)
-
-        fig, ax = plt.subplots()
+        
+        fig1, ax = plt.subplots()
 
         plt.title("Average Velocity at position %s to %s" % (position - position_range, position + position_range))
         if self.Road.obstacle is not None and plot_obstacle == True:
@@ -620,10 +619,8 @@ class Simulation:
         ax.plot(time_range, average_velocities, color="black")
         ax.set_ylabel("Average Velocity")
         ax.set_xlabel("Time")
+        
         plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-        plt.show()
-
-
 
 steps = 1000
 seeds = 100
