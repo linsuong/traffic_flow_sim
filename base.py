@@ -230,13 +230,14 @@ class Simulation:
                                         empty_positions_behind = set((position - offset) % self.Road.length for offset in range(0, empty_space_required_backward + 1))
 
                                         if not any(pos in next_lane_positions for pos in empty_positions_ahead) and not any(pos in next_lane_positions for pos in empty_positions_behind):
-                                            #print('removing car in position', position, 'in lane', lane_number + 1, 'moving to position', position, 'in lane', next_lane_number + 1)
-                                            insert_index = bisect_left(next_lane_positions, position)
-                                            next_lane_positions.insert(insert_index, position)
-                                            next_lane_velocities.insert(insert_index, velocity)
+                                            if len(current_lane_positions) > len(next_lane_positions):
+                                                #print('removing car in position', position, 'in lane', lane_number + 1, 'moving to position', position, 'in lane', next_lane_number + 1)
+                                                insert_index = bisect_left(next_lane_positions, position)
+                                                next_lane_positions.insert(insert_index, position)
+                                                next_lane_velocities.insert(insert_index, velocity)
 
-                                            moved_cars_indices.append(i)
-                                            indices_to_remove.append(i)
+                                                moved_cars_indices.append(i)
+                                                indices_to_remove.append(i)
                                     
                                     else:
                                         #print('removing car in position', position, 'in lane', lane_number + 1, 'moving to position', position, 'in lane', next_lane_number + 1)
@@ -262,18 +263,21 @@ class Simulation:
                     #print('after swap', positions_after_lane_swap, velocities_after_lane_swap)
 
                 for lane_number in range(self.Road.number_of_lanes):
-                    print('lane moving, t =', step, 'current lane =', lane_number)
+                    #print('lane moving, t =', step, 'current lane =', lane_number)
+
                     for i in range(len(self.velocities_by_lane[lane_number])):
                         position = self.positions_by_lane[lane_number][i]
                         velocity = self.velocities_by_lane[lane_number][i]
                         headway = (self.positions_by_lane[lane_number][(i + 1) % len(self.positions_by_lane[lane_number])] - self.positions_by_lane[lane_number][i]) % self.Road.length
                         
                         if self.Road.has_obstacle(step, position, lane_number + 1):
-                            print('obstacle detected, t =', step)
+                            print('obstacle detected, t =', step, 'lane =', lane_number + 1, 'position =', position)
                             if self.Road.obstacle.start_time <= step <= self.Road.obstacle.end_time:
-                                obstacle_range = range(self.Road.obstacle.position - self.Vehicle.max_velocity, self.Road.obstacle.position)
+                                obstacle_range = range(self.Road.obstacle.position - self.Vehicle.max_velocity, self.Road.obstacle.position + 1)
+                                print(obstacle_range)
 
                                 if position in obstacle_range:
+                                    print('obstacle detected at position =', position, 'time =', step)
                                     velocity = 0
 
                                 else:
@@ -366,16 +370,13 @@ class Simulation:
         time_steps = range(steps)
         lane_data = [data[lane - 1] for data in self.data]
  
-        for i in range(steps):
-            new_data = lane_data[i]
-            
-            if ax is not None:
+        if ax is not None:
+            for i in range(steps):
+                new_data = lane_data[i]
                 ax.plot(new_data, [i] * len(new_data), '.', markersize=0.5, color='grey')
 
-            else:
-                plt.plot(new_data, [i] * len(new_data), '.', markersize=0.5, color='grey')
-
             if self.Road.obstacle is not None and plot_obstacle == True:
+                print("plotting obstacle...")
                 obstacle_range = np.arange(self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
                 obstacle_time_range = np.arange(self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
 
@@ -385,7 +386,6 @@ class Simulation:
                     if self.Road.obstacle.lane == lane + 1:
                         plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
 
-        if ax is not None:
             ax.xaxis.set_ticks_position('top')
             ax.xaxis.set_label_position('top')
             ax.invert_yaxis()
@@ -393,23 +393,44 @@ class Simulation:
             ax.set_xlabel('Vehicle Position')
             ax.set_ylabel('Time')
             #ax.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
+        
         else:
+            for i in range(steps):
+                new_data = lane_data[i]
+                plt.plot(new_data, [i] * len(new_data), '.', markersize=0.5, color='grey')
+
+            if self.Road.obstacle is not None and plot_obstacle:
+                obstacle_range = np.arange(
+                    self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
+                obstacle_time_range = np.arange(
+                    self.Road.obstacle.start_time, self.Road.obstacle.end_time, 1)
+
+                obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
+
+                for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
+                    if self.Road.obstacle.lane == lane:
+                        plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
+
             plt.gca().xaxis.set_ticks_position('top')
             plt.gca().xaxis.set_label_position('top')
             plt.gca().invert_yaxis()
             plt.title('Time Space diagram')
             plt.xlabel('Vehicle Position')
             plt.ylabel('Time')
-            plt.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-
+            plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
+        
         if save:
             self.output_dir = os.path.join(
                 folder, f'Time Space Plot {number}.png')
+            
             if ax is not None:
                 fig = ax.figure
+
             else:
                 fig = plt.gcf()
+
             fig.set_size_inches(12, 12)
+
             plt.savefig(self.output_dir, dpi=100)
             plt.clf()
 
@@ -603,6 +624,7 @@ class Simulation:
         plt.show()
 
 
+
 steps = 1000
 seeds = 100
 
@@ -611,7 +633,7 @@ sim = Simulation()
 sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.5)
 sim.Road = Road(length=1000, density = 0.5, number_of_lanes = 1)
 sim.initialize()
-#sim.add_obstacle(start_time= 10, end_time= 30, position= 50, length= 1, lane= 1)
+sim.add_obstacle(start_time= 100, end_time= 300, position= 500, length= 1, lane= 1)
 sim.update(steps)
 sim.plot_timespace(steps, 1, plot_obstacle= True)
 
