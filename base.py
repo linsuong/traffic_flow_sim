@@ -10,64 +10,17 @@ from matplotlib.colors import Normalize
 from bisect import bisect_left
 
 class Vehicle:
-    def __init__ (self, length = 1, target_velocity = 4, max_velocity = 5, 
-                    acceleration_time = 0.5, deceleration_time = 0.5, slow_prob = 0.3, kindness = False, reckless = False):
+    def __init__ (self, max_velocity = 5, 
+                     slow_prob = 0.3, kindness = False, reckless = False):
         #self.id = id
-        self.length = length
         self.velocity = []
         self.position = []
         self.lane = None
         #self.current_velocity = current_velocity
-        self.target_velocity = target_velocity 
         self.max_velocity = max_velocity
-        self.acceleration_time = acceleration_time
-        self.deceleration_time = deceleration_time
         self.slow_prob = slow_prob
         self.kindness = kindness
         self.reckless = reckless
-
-    def acceleration(self):
-        factor = (self.target_velocity - self.velocity)/self.acceleration_time
-        final_velocity = self.velocity * factor
-        #TODO: Is this the right way to do this? Or should the stop/unstop function be used?
-        return final_velocity
-
-    def stop(self, status):  #use damping equation for a stopped vehicle
-        if status == True:
-            #TODO: insert damping function implementation
-            self.velocity = 0 
-        else:
-            #TODO: unstop function
-            pass
-
-    def lane_switch(self):
-        #for i in range(self.Road.lanes):
-            #if self.
-        #TODO: make a lane switch fucntion that allows it to turn/switch lanes, lane switching also needs to check for headway
-        # this can be implemented with a recklessness prbability maybe(?)
-        pass
-
-class Traffic_Light:
-    def __init__ (self, color, position):
-        self.color = color
-        self.position = position
-        self.Vehicle = Vehicle()
-        self.color = ['red', 'green'] 
-
-    def status(self, color):
-        color = random.choice(self.color)
-        print(color)
-
-        if color == 'red':
-            self.Vehicle.target_velocity = 0
-            self.Vehicle.acceleration(self)
-            self.Vehicle.stop(self, True)
-
-            #TODO = set timer for red light to turn into green light
-    
-        if color == 'green':
-            #TODO = set timer for green to turn into red - can this be done compactly?
-            pass
       
 class Obstacle:
     def __init__(self, start_time, end_time, position, length, lane):
@@ -78,13 +31,11 @@ class Obstacle:
         self.lane = lane
 
 class Road:
-    def __init__(self, length=100, density=1 / 100, speed_limit=2, number_of_lanes = 1, bend=False):
+    def __init__(self, length=100, density=1 / 100, number_of_lanes = 1):
         self.length = length
         self.density = density
         self.number = int(density * length)
-        self.speed_limit = speed_limit
         self.number_of_lanes = number_of_lanes
-        self.bend = bend
         self.obstacle = None
 
     def has_obstacle(self, time_step, position, lane):
@@ -93,29 +44,7 @@ class Road:
             and self.obstacle.start_time <= time_step < self.obstacle.end_time
             and lane == self.obstacle.lane
             and self.obstacle.position <= position < (self.obstacle.position + self.obstacle.length)
-            #TODO: add something for lanes
         )
-
-    '''
-    def bend(angle, entrance_length, exit_length):
-        if self.bend = True:
-            angle = 
-
-            #TODO: Add "bend" fucntion to Road class to simulate bends
-
-    '''
-class Network: 
-    #TODO: add connection function that joins roads together to form a network.
-    def __init__(self) -> None:
-        self.roads = []
-        self.connect = {}
-        self.Road = Road()
-
-    def connect_roads(self, roads):
-        #TODO: think of a way to join roads at a point in the road - this may be not the best way to do this, 
-        #since the road generation is quite iffy. could set the joint at the end of the road? 
-        #road generation is not a np.zeros array, so specifying a joint will be hard.
-        pass
     
 class Simulation:
     def __init__(self, save = False, output_dir = None):
@@ -163,7 +92,7 @@ class Simulation:
     def add_obstacle(self, start_time, end_time, position, length, lane):
         self.Road.obstacle = Obstacle(start_time, end_time, position, length, lane)
 
-    def update(self, steps, flow_rate_interval = None):
+    def update(self, steps):
         self.lane_swap = None
         self.flow_rate = []
         self.passes_per_lane = [0] * self.Road.number_of_lanes
@@ -330,6 +259,7 @@ class Simulation:
             #print(self.velocity_data)
             #print(self.positions_by_lane)
             #print(self.velocities_by_lane)
+        
 
         return self.data, self.velocity_data, self.positions_by_lane, self.velocities_by_lane, self.passes_per_lane
     
@@ -389,7 +319,8 @@ class Simulation:
             ax.xaxis.set_ticks_position('top')
             ax.xaxis.set_label_position('top')
             ax.invert_yaxis()
-            ax.set_title(f'{self.Road.number_of_lanes} lane configuration, lane {lane}')
+            ax.set_title(f'{self.Road.number_of_lanes} lane configuration, lane {lane}, slow probability {self.Vehicle.slow_prob}')
+            #ax.set_title(f'{self.Road.number_of_lanes} lane configuration, lane {lane}')
             ax.set_xlabel('Vehicle Position')
             ax.set_ylabel('Time')
             #ax.figtext(0.1, 0.05, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
@@ -415,7 +346,7 @@ class Simulation:
             plt.gca().xaxis.set_label_position('top')
             plt.gca().invert_yaxis()
             plt.title('Time Space diagram')
-            plt.xlabel('Vehicle Position')
+            plt.xlabel('Vehicle Position')  
             plt.ylabel('Time')
             plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
         
@@ -623,23 +554,75 @@ class Simulation:
 
 if __name__ == "__main__":
       
-    steps = 1000
+    steps = 2000
     seeds = 100
 
-    fig, ax = plt.subplots(2, 2)
+    fig, ax = plt.subplots(2, 3, figsize = (30, 90))
     random.seed(seeds)
-    sim = Simulation()
-    sim.Vehicle = Vehicle(max_velocity=5, slow_prob=0.5)
-    sim.Road = Road(length=1000, density = 0.8, number_of_lanes = 4)
-    sim.initialize()
-    #sim.add_obstacle(start_time= 100, end_time= 300, position= 500, length= 1, lane= 1)
-    sim.update(steps)
+
+    slow_probs = [0, 0.2, 0.4]
+    count = 0
+    for i in slow_probs:
+        print(i)
+        sim = Simulation()
+        sim.Vehicle = Vehicle(max_velocity=10, slow_prob= i)
+        sim.Road = Road(length=2000, density = 0.4, number_of_lanes = 1)
+        sim.initialize()
+        #sim.add_obstacle(start_time= 100, end_time= 300, position= 500, length= 1, lane= 1)
+        sim.update(steps)
+        sim.plot_timespace(steps, lane = 1, ax = ax[0, count])
+        count = count + 1
+
+    slow_probs1 = [0.6, 0.8, 1]
+    count1 = 0
+
+    for j in slow_probs1:
+        sim = Simulation()
+        sim.Vehicle = Vehicle(max_velocity=10, slow_prob= j)
+        sim.Road = Road(length=2000, density = 0.4, number_of_lanes = 1)
+        sim.initialize()
+        #sim.add_obstacle(start_time= 100, end_time= 300, position= 500, length= 1, lane= 1)
+        sim.update(steps)
+        sim.plot_timespace(steps, lane = 1, ax = ax[1, count1])
+        count1 = count1 + 1
+
+    fig1, ax1 = plt.subplots(2, 3, figsize = (30, 90))
+    random.seed(seeds)
+
+    slow_probs = [0, 0.2, 0.4]
+    count = 0
+    for i in slow_probs:
+        print(i)
+        sim = Simulation()
+        sim.Vehicle = Vehicle(max_velocity=10, slow_prob= i)
+        sim.Road = Road(length=2000, density = 0.4, number_of_lanes = 1)
+        sim.initialize()
+        #sim.add_obstacle(start_time= 100, end_time= 300, position= 500, length= 1, lane= 1)
+        sim.update(steps)
+        sim.plot_timespace(steps, lane = 2, ax = ax1[0, count])
+        count = count + 1
+
+    slow_probs1 = [0.6, 0.8, 1]
+    count1 = 0
+
+    for j in slow_probs1:
+        sim = Simulation()
+        sim.Vehicle = Vehicle(max_velocity=10, slow_prob= j)
+        sim.Road = Road(length=2000, density = 0.4, number_of_lanes = 1)
+        sim.initialize()
+        #sim.add_obstacle(start_time= 100, end_time= 300, position= 500, length= 1, lane= 1)
+        sim.update(steps)
+        sim.plot_timespace(steps, lane = 2, ax = ax1[1, count1])
+        count1 = count1 + 1
+    plt.show()
+    """
     sim.plot_timespace(steps, lane = 1, plot_obstacle= True, ax = ax[0, 0])
     sim.plot_timespace(steps, lane = 2, plot_obstacle= True, ax = ax[1, 0])
     sim.plot_timespace(steps, lane = 3, plot_obstacle= True, ax = ax[0, 1])
     sim.plot_timespace(steps, lane = 4, plot_obstacle= True, ax = ax[1, 1])
 
-    """
+    plt.show()
+    
     #sim.initialize()
     #sim.update(steps)
     steps = 1000
