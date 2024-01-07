@@ -425,21 +425,17 @@ class Simulation:
 
             
     def plot_density(self, steps, length, max_velocity, slow_prob,
-                     number_of_lanes, plot=True, isAvg=True, save=False, 
-                     folder=None, number=None, plot_lanes=False, ax=None):
-        # TODO: Multi-lane implementation.
+                     number_of_lanes, plot=True, isAvg=True,
+                     plot_lanes=False, labels = None, linestyle = "-", ax=None):
         print("running density plot")
         densities = []
         flow_rate = []
         flow_rates = [[] for _ in range(number_of_lanes)]
-        #print('flow', flow_rates)
-        flow_rate_avgs = []
 
         if plot:
             if isAvg:
-                for i in range(10, 990):
-                    p = 0.001 * i
-                    #print('density: %f' % p)
+                for i in range(0, 100):
+                    p = 0.008 * i
                     densities.append(p)
                     sim = Simulation()
                     sim.Vehicle = Vehicle(max_velocity, slow_prob)
@@ -453,45 +449,50 @@ class Simulation:
                     else:
                         for j in range(number_of_lanes):
                             flow_rates[j].append(sim.flow_rate_by_lane(steps, j))
-                            #print(flow_rates)
 
-                if ax is not None:
-                    if plot_lanes == False:
-                        ax.plot(densities, flow_rate, linestyle='-', label= f'{number_of_lanes} lanes')
+                if plot_lanes == False:
+                    ax.plot(densities, flow_rate, linestyle, label = labels, markersize = 1)
 
-                    else:
-                        for k in range(number_of_lanes):
-                            ax.plot(densities, flow_rates[k], linestyle='-', label= f'lane {k + 1}')
-
-                    ax.set_title(f'Average Flow Density Relationship, Max velocity = {max_velocity}')
-                    ax.set_xlabel("Density")
-                    ax.set_ylabel("Flow rate")
-                    ax.legend()
-                    #ax.figtext(0.1, 0.005, f'Max velocity = {self.Vehicle.max_velocity}, Slow Prob = {self.Vehicle.slow_prob}', fontsize=9,
-                            #color='black')
-                    
                 else:
-                    if plot_lanes == False:
-                        plt.plot(densities, flow_rate, linestyle='-', label=f'{number_of_lanes} lanes')
-                
-                    else:
-                        for k in range(number_of_lanes):
-                            plt.plot(densities, flow_rates[k], linestyle='.', label=f'Lane {k + 1}')
+                    for k in range(number_of_lanes):
+                        ax.plot(densities, flow_rates[k], linestyle, markersize = 1,  label= f'lane {k + 1}')
 
-                    plt.title(f'Average Flow Density Relationship - Number of lanes: {number_of_lanes}')
-                    plt.xlabel("Density")
-                    plt.ylabel("Flow rate")
-                    plt.legend()
-                    plt.figtext(0.1, 0.005, f'Max velocity = {max_velocity}, Slow Prob = {slow_prob}', fontsize=9,
-                            color='black')
-                
-                    if save:
-                        self.output_dir = os.path.join(folder, f'Flow Density {number}.png')
-                        ax.savefig(self.output_dir)
-                        plt.clf()
-        
+                ax.set_xlabel("Density")
+                ax.set_ylabel("Flow rate")
+                ax.legend(loc = 'upper right')
+
         print("done")
 
+    def plot_density_with_obstacle(self, steps, length, max_velocity, slow_prob,
+                     number_of_lanes, plot=True, isAvg=True,
+                     plot_lanes=False, labels = None, linestyle = "-", ax=None):
+        # TODO: Multi-lane implementation.
+        print("running density plot")
+        densities = []
+        flow_rate = []
+        flow_rates = [[] for _ in range(number_of_lanes)]
+
+        if plot:
+            if isAvg:
+                for i in range(0, 100):
+                    p = 0.008 * i
+                    #print('density: %f' % p)
+                    densities.append(p)
+                    sim = Simulation()
+                    sim.Vehicle = Vehicle(max_velocity, slow_prob)
+                    sim.Road = Road(length, density=p, number_of_lanes = number_of_lanes)
+                    sim.initialize()
+                    sim.add_obstacle(start_time= 10, end_time= 110, position= 200, length = 1, lane = 1)
+                    sim.update(steps)
+                    flow_rate.append(sim.flow_rate_average(steps))
+
+                if ax is not None:
+                    ax.plot(densities, flow_rate, linestyle, label = labels, markersize = 1)
+                    ax.set_xlabel("Density")
+                    ax.set_ylabel("Flow rate")
+                    ax.legend(loc = 'upper right')
+  
+        print("done")
 
     def plot_speed_camera(self, steps, interval, plot_obstacle = True):
         flows = []
@@ -553,13 +554,6 @@ class Simulation:
         plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
 
 if __name__ == "__main__":
-    for i in range(2, 12, 2):
-        for j in range(1, 5, 1):
-            #Simulation.plot_density(steps, length = 2000, max_velocity= i, slow_prob= 0.2, number_of_lanes= j)
-            #plt.savefig(save_location, f'Density Iteration, ')
-            print('vel =', i)
-            print('lane =', j)
-
     steps = 1000
     seeds = 100
     fig, ax = plt.subplots(1, 2)
@@ -572,5 +566,6 @@ if __name__ == "__main__":
     sim.update(steps)
     sim.plot_timespace(steps, lane = 1, ax = ax[0])
     sim.plot_timespace(steps, lane = 2, ax = ax[1])
-
+    sim.plot_density(steps = 100, length = 100, max_velocity= 10, slow_prob= 0.2, number_of_lanes= 2, linestyle = ".")
+    #sim.plot_density_with_obstacle(steps = 1000, length = 1000, max_velocity= 10, slow_prob= 0.2, number_of_lanes= 2, 
     plt.show()
