@@ -9,9 +9,10 @@ from base import Road
 
 save_location = r'C:\Users\linus\Documents\traffic simulation plots\final plots'
 #Density simulation#
-seeds = 100
+#Density simulation#
+'''seeds = 100
 random.seed(seeds)
-for j in range(2, 5, 1): #number of lanes
+for j in range(1, 5, 1): #number of lanes
     fig, ax = plt.subplots(1, 1, figsize = (20, 10))
     for i in range(2, 14, 2): #velocities
         Sim = Simulation()
@@ -21,6 +22,8 @@ for j in range(2, 5, 1): #number of lanes
     ax.autoscale()
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots, velocity, {j} lanes'))
+
+print('1 done')
 
 #with obstacle
 seeds = 100
@@ -36,6 +39,8 @@ for j in range(1, 5, 1): #number of lanes
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots with obstacle, velocity, {j} lanes'))
 
+print('2 done')
+'''
 #Density-Slow Probability Iteration#
 slowprobs = np.arange(0.2, 1.2, 0.2)
 seeds = 100
@@ -50,7 +55,9 @@ for j in range(1, 5, 1): #number of lanes
     ax.autoscale()
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots, slow probability, {j} lanes'))
-    
+
+print('3 done')
+
 #with obstacle
 seeds = 100
 random.seed(seeds)
@@ -59,11 +66,13 @@ for j in range(1, 5, 1): #number of lanes
     for i in slowprobs: #slow probabilities
         Sim = Simulation()
         Sim.plot_density(steps = 1000, length = 1000, max_velocity= 6, slow_prob= i, number_of_lanes= j, 
-                         obstacle= True, labels = i, ax = ax)
+                         labels = i, obstacle= True, ax = ax)
     fig.suptitle(f'Fundamental relationship with obstacle, slow probabilities, {j} lanes')
     ax.autoscale()
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots with obstacle, slow probability, {j} lanes'))
+
+print('4 done')
 
 seeds = 100
 random.seed(seeds)
@@ -77,19 +86,21 @@ for i in range(1, 5, 1):
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots number of lanes'))
 
+print('5 done')
+
 seeds = 100
 random.seed(seeds)
 for i in range(1, 5, 1):
     fig, ax = plt.subplots(figsize = (20, 10))
     Sim = Simulation()
-    Sim.plot_density(steps = 1000, length = 1000, max_velocity= 6, slow_prob= 0.2, number_of_lanes= j, 
-                    labels = i, ax = ax)
+    Sim.plot_density(steps = 1000, length = 1000, max_velocity= 6, slow_prob= 0.2, number_of_lanes= i, 
+                    labels = i, obstacle = True, ax = ax)
     fig.suptitle(f'Fundamental relationship, comparing number of lanes with obstacle')
     ax.autoscale()
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots with obstacle number of lanes'))
 
-
+print('6 done')
 ##investigating obstacle at differnet lane
 #with obstacle
 seeds = 100
@@ -99,11 +110,13 @@ for j in range(3, 5, 1): #number of lanes
     for i in range(2, 14, 2): #velocities
         Sim = Simulation()
         Sim.plot_density(steps = 1000, length = 1000, max_velocity= i, slow_prob= 0.2, number_of_lanes= j, 
-                         obstacle= True, labels = i, ax = ax)
+                         labels = i, obstacle= True, obstacle_lane= 2, ax = ax)
     fig.suptitle(f'Fundamental relationship with obstacle in lane 2, max velocities, {j} lanes')
     ax.autoscale()
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots with obstacle in lane 2, velocity, {j} lanes'))
+
+print('7 done')
 
 seeds = 100
 random.seed(seeds)
@@ -112,20 +125,11 @@ for j in range(3, 5, 1): #number of lanes
     for i in slowprobs: #slow probabilities
         Sim = Simulation()
         Sim.plot_density(steps = 1000, length = 1000, max_velocity= 6, slow_prob= i, number_of_lanes= j, 
-                         obstacle= True, labels = i, ax = ax)
+                         labels = i, obstacle= True, obstacle_lane= 2, ax = ax)
     fig.suptitle(f'Fundamental relationship with obstacle in lane 2, slow probabilities, {j} lanes')
     ax.autoscale()
     ax.legend(loc = 'upper right')
     plt.savefig(os.path.join(save_location, f'Density Iteration dots with obstacle in lane 2, slow probability, {j} lanes'))
 
-seeds = 100
-random.seed(seeds)
-for i in range(3, 5, 1):
-    fig, ax = plt.subplots(figsize = (20, 10))
-    Sim = Simulation()
-    Sim.plot_density(steps = 1000, length = 1000, max_velocity= 6, slow_prob= 0.2, number_of_lanes= j, 
-                    labels = i, ax = ax)
-    fig.suptitle(f'Fundamental relationship, comparing number of lanes with obstacle in lane 2')
-    ax.autoscale()
-    ax.legend(loc = 'upper right')
-    plt.savefig(os.path.join(save_location, f'Density Iteration dots with obstacle in lane 2, number of lanes'))
+print('8 done')
+

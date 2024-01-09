@@ -281,7 +281,7 @@ class Simulation:
         
         return self.average_flow_rate
                    
-    def plot_timespace(self, steps, lane=None, plot=True, plot_obstacle=True, save=False, folder=None, number=None, ax=None):
+    def plot_timespace(self, steps, lane=None, plot=True, plot_obstacle=False, save=False, folder=None, number=None, ax=None):
         '''
             plots time space diagram using data from self.data
 
@@ -330,6 +330,7 @@ class Simulation:
                 new_data = lane_data[i]
                 plt.plot(new_data, [i] * len(new_data), '.', markersize=0.1, color='grey')
 
+            '''            
             if self.Road.obstacle is not None and plot_obstacle:
                 obstacle_range = np.arange(
                     self.Road.obstacle.position, self.Road.obstacle.position + self.Road.obstacle.length, 1)
@@ -339,8 +340,9 @@ class Simulation:
                 obstacle_positions = [pos for time in obstacle_time_range for pos in obstacle_range]
 
                 for obstacle_pos, obstacle_time in zip(obstacle_positions, obstacle_time_range):
-                    if self.Road.obstacle.lane + 1 == lane:
+                    if self.Road.obstacle.lane - 1 == lane:
                         plt.plot(obstacle_pos, obstacle_time, 'rx', markersize=5)
+            '''
 
             plt.gca().xaxis.set_ticks_position('top')
             plt.gca().xaxis.set_label_position('top')
@@ -419,8 +421,7 @@ class Simulation:
             plt.xlabel("Vehicle Velocity")
             plt.ylabel("Time")
             plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
-
-            
+          
     def plot_density(self, steps, length, max_velocity, slow_prob,
                      number_of_lanes, plot=True, isAvg=True, obstacle = False,
                      obstacle_lane = 1, plot_lanes=False, labels = None, linestyle = "-", ax=None):
@@ -431,8 +432,8 @@ class Simulation:
 
         if plot:
             if isAvg:
-                for i in range(10, 50):
-                    p = 0.02 * i
+                for i in range(0, 50):
+                    p = 0.015 * i
                     densities.append(p)
                     sim = Simulation()
                     sim.Vehicle = Vehicle(max_velocity, slow_prob)
@@ -462,31 +463,30 @@ class Simulation:
 
         print("done")
 
-    def avg_velocity_plot(self, time_start, time_stop, position, 
-                          position_range, lane, ax, plot_obstacle = True):
+    def avg_velocity_plot(self, time_start, time_stop, position, position_range, lane, ax, plot_obstacle=True, show_legend = True):
         lane_data = [data[lane - 1] for data in self.data]
         vel_data = [vel_data[lane - 1] for vel_data in self.velocity_data]
         average_velocities = []
-        time_range = np.arange(time_start, time_stop)
-        
+
         for i in range(time_start, time_stop):
             total_velocity = 0
             num_car = 0
             positions = lane_data[i]
             velocities = vel_data[i]
 
-            for time in range(len(time_range)):
-                print(positions[time])
-                if position - position_range <= positions[time] <= position + position_range:
+            for j in range(len(positions)):
+                if position - position_range <= positions[j] <= position + position_range:
                     # Accumulate the velocity and count the number of vehicles
-                    total_velocity += velocities[time]
+                    total_velocity += velocities[j]
                     num_car += 1
 
             average_velocity = total_velocity / num_car if num_car > 0 else 0
             average_velocities.append(average_velocity)
 
-        plt.title("Average Velocity at position %s to %s, lane %s" % (position - position_range, position + position_range, lane))
-        if self.Road.obstacle is not None and plot_obstacle == True:
+        time_range = np.arange(time_start, time_stop)
+        plt.title(f"Average Velocity at position {position - position_range} to {position + position_range}")
+        
+        if self.Road.obstacle is not None and plot_obstacle:
             rectangle = patches.Rectangle(
                 (self.Road.obstacle.start_time, 0),
                 self.Road.obstacle.end_time - self.Road.obstacle.start_time,
@@ -495,10 +495,11 @@ class Simulation:
                 color='red')
             ax.add_patch(rectangle)
 
-        ax.plot(time_range, average_velocities, label = f'{lane}', color="black")
+        ax.plot(time_range, average_velocities, label=f'{lane}', linewidth = 1)
         ax.set_ylabel("Average Velocity")
         ax.set_xlabel("Time")
-        ax.legend(loc = 'upper left')
+        if show_legend == True:
+            ax.legend(loc='upper left')
         
         #plt.figtext(0.1, 0.005, f'Density = {self.Road.density}, Number of Vehicles = {self.Road.number}, Slow Prob = {self.Vehicle.slow_prob}, Max velocity = {self.Vehicle.max_velocity}', fontsize=9, color='black')
 
